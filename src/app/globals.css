@@ -7,6 +7,12 @@
   --foreground: #171717;
 }
 
+@theme {
+  --color-midnight: #121063;
+  --color-tahiti: #3ab7bf;
+  --color-bermuda: #78dcca;
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;
