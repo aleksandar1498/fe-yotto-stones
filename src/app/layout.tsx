@@ -1,6 +1,14 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
 import "./globals.css";
+import Navbar from "@/components/common/Navbar9";
+import Footer1 from "@/components/common/Footer1";
+import ReduxProvider from "@/providers/ReduxProvider";
+import PersistProvider from "@/providers/PersistProvider";
+import { PersistGate } from "redux-persist/integration/react";
+import { persistor } from "@/lib/store";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,10 +32,26 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link
+          href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700&display=swap"
+          rel="stylesheet"
+        />
+        {/* <link
+          rel="stylesheet"
+          href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
+        /> */}
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <ReduxProvider>
+          <PersistProvider>
+            <Navbar />
+            {children}
+            <Footer1 />
+          </PersistProvider>
+        </ReduxProvider>
       </body>
     </html>
   );

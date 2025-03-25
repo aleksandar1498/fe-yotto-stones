@@ -1,0 +1,25 @@
+.nav-link {
+  font-family: "Montserrat",Helvetica,Arial,sans-serif;
+  position: relative; /* Ensure the pseudo-element is positioned relative to the parent link */
+}
+
+.nav-link::before {
+  content: '';
+  width: 0%;
+  left: 50%; /* Start at the center */
+  height: 2px;
+  background: #7d6741;
+  display: block;
+  position: absolute;
+  bottom: 0;
+  opacity: 0;
+  transition: all 0.2s ease-in-out; /* Corrected the transition syntax */
+}
+
+/* Hover state to animate the pseudo-element */
+.nav-link:hover::before {
+  width: 100%;
+  opacity: 1;
+  left: 0; /* Move the pseudo-element to the left side */
+  right: 0; /* Extend it to the full width */
+}

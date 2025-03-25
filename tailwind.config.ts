@@ -12,9 +12,18 @@ export default {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
-      },
+        obsidian: "#0A0A0A",
+        platinum: "#E5E5E5",
+        royalGold: "#C8A45B",
+        darkGold : "#7d6741",
+        darkGoldHover: "#644e28",
+        midnightBlue: "#1B1F3B",
+        graphite: "#444444",
+        carraraWhite: "#F8F8F8",
+      }
     },
-  },
-  plugins: [],
-  // presets: [require("@relume_io/relume-tailwind")],
+    plugins: [
+      require("@xpd/tailwind-3dtransforms")
+    ],
+  }
 } satisfies Config;
