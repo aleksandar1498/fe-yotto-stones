@@ -6,7 +6,6 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useSelector } from "react-redux";
 
 import PageHeader from "@/components/common/PageHeader";
-import CountertopViewer from "@/components/common/MaterialViewer";
 import dynamic from "next/dynamic";
 
 const ITEMS_PER_LOAD = 6; // Number of items to load each time
@@ -118,12 +117,7 @@ const MaterialList = () => {
         subtitle={currentCategory && currentCategory['title']}
         backgroundImage={ `/assets/images/materials/${slug}/${materials[Math.floor(Math.random()*materials.length)]?.imageName}`}
       />
-      <div className="container mx-auto p-6">
-        <BabylonScene />
-        {/* {currentCategory &&  <CountertopViewer modelPath="/assets/models/marble_slab.glb" textureUrl={currentCategory['mainImageUrl']} />} */}
-     
-
-      
+      <div className="container mx-auto p-6">  
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}

@@ -4,6 +4,7 @@ package-lock.*
 
 # dependencies
 /node_modules
+/public
 /.pnp
 .pnp.*
 .yarn/*

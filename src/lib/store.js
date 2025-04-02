@@ -1,5 +1,6 @@
 import { configureStore } from "@reduxjs/toolkit";
 import materialReducer from "@/redux/materialSlice";
+import modalReducer from "@/redux/modalSlice";
 import { persistStore, persistReducer } from "redux-persist";
 import storage from "redux-persist/lib/storage";
 
@@ -17,6 +18,7 @@ const persistedMaterialReducer = persistReducer(persistConfig, materialReducer);
 export const store = configureStore({
   reducer: {
     materials: persistedMaterialReducer,
+    modal: modalReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

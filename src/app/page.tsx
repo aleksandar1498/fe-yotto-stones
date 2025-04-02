@@ -10,7 +10,7 @@ import CompanyOfferings from "@/components/pages/home/CompanyOfferings";
 import IntroSection from "@/components/pages/home/IntroSection";
 import AboutUs from "@/components/pages/home/AboutUs";
 import CTASection from "@/components/pages/home/Cta57";
-import Materials from "@/components/pages/home/Materials";
+import Materials from "@/components/common/Materials";
 import FeatureSection from "@/components/pages/home/FeatureSection";
 import Contact14 from "@/components/common/Contact14";
 import WorkSteps from "@/components/pages/home/WorkSteps";
