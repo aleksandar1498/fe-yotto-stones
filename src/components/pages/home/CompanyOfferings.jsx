@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-
+import { useEffect, useState } from "react";
 const items = [
   {
     title: "Первази за прозорци", // Windowsills
@@ -43,6 +43,16 @@ const items = [
   }
 ];
 export default function CompanyOfferings() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkIsMobile = () => setIsMobile(window.innerWidth <= 768);
+
+    checkIsMobile();
+    window.addEventListener("resize", checkIsMobile);
+
+    return () => window.removeEventListener("resize", checkIsMobile);
+  }, []);
   return (
     <section className="py-20 px-8 bg-gray-100 text-gray-900" id="offerings">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center">
@@ -78,12 +88,34 @@ export default function CompanyOfferings() {
             transition={{ duration: 0.5, delay: index * 0.3 }}
           >
             <img src={item.image} alt={item.title} className="w-full h-96 object-cover rounded-lg" />
-            <div className="absolute inset-0 text-center w-full text-darkGold hover:text-royalGold  z-20 ">
-              <h3 className="text-2xl font-bold space-x-4 p-4 ">{item.title}</h3>
-            </div>
-            <div className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-center items-center text-white p-4">
-              <p className="text-lg text-center mt-2 py-8 max-w-[90%]">{item.description}</p>
-            </div>
+            {isMobile ? <>
+              <motion.div
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                // animate={{ opacity: 1 }}
+                transition={{ duration: 0.5, delay: index * 0.3 }} className="absolute inset-0 text-center w-full text-royalGold  z-20 ">
+                <h3 className="text-2xl font-bold space-x-4 p-4 ">{item.title}</h3>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
+                // animate={{ opacity: 1 }}
+                transition={{ duration: 0.5, delay: index * 0.3 }}
+                className="absolute inset-0 bg-black bg-opacity-50 transition-opacity flex flex-col justify-center items-center text-white p-4">
+                <p className="text-lg text-center mt-2 py-8 max-w-[90%]">{item.description}</p>
+              </motion.div>
+            </> :
+              <>
+                <div className="absolute inset-0 text-center w-full text-darkGold hover:text-royalGold  z-20 ">
+                  <h3 className="text-2xl font-bold space-x-4 p-4 ">{item.title}</h3>
+                </div>
+                <div
+                  className="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-center items-center text-white p-4">
+                  <p className="text-lg text-center mt-2 py-8 max-w-[90%]">{item.description}</p>
+                </div>
+              </>}
+
+
           </motion.div>
         ))}
       </motion.div>
