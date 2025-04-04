@@ -510,6 +510,7 @@ export default function BabylonScene() {
     const [dripTray, setDripTray] = useState('');
     const [dripTrayDisabled, setDripTrayDisabled] = useState(false);
     const [activeMenu, setActiveMenu] = useState(null); // 'chamfer' | 'driptray' | 'finishing'
+    const [menuWidth, setMenuWidth] = useState(null);
     const [sunMode, setSunMode] = useState("day");
 
     const handleBevelChange = (e) => {
@@ -556,6 +557,15 @@ export default function BabylonScene() {
             }
         };
 
+        const updateMenuWidth = () => {
+            if (menuRef.current) {
+                setMenuWidth(menuRef.current.offsetWidth);
+            }
+        };
+
+        updateMenuWidth();
+        window.addEventListener('resize', updateMenuWidth);
+
         document.addEventListener('mousedown', handleClickOutside);
     }, []);
 
@@ -590,107 +600,110 @@ export default function BabylonScene() {
             {/* Dropdown Menu (Above icons) */}
             <AnimatePresence>
                 {activeMenu && (
-                    <motion.div
-                        ref={dropdownRef}
-                        initial="hidden"
-                        animate="visible"
-                        exit="exit"
-                        variants={dropdownVariants}
-                        transition={{ duration: 0.25 }}
-                        className="absolute bottom-28 left-1/2 transform -translate-x-1/2 bg-white rounded-xl shadow-md px-4 py-3 z-20"
-                    >
+                    <div className="fixed bottom-[calc(clamp(1.5rem,6vh,3rem)+4.5rem)] w-full flex justify-center z-20">
 
-                        {activeMenu === 'chamfer' && (
-                            <div>
-                                <p
-                                    onClick={() => toggleMenu('chamfer')}
-                                    className="absolute top-1 right-1 bg-gray-200 p-0.5 rounded-full cursor-pointer"
-                                >
-                                    <X size={14} />
-                                </p>
-                                <label className="block text-sm font-semibold mb-1">Фаска</label>
-                                <select
-                                    value={bevel}
-                                    onChange={handleBevelChange}
-                                    className="border rounded p-1 text-sm"
-                                >
-                                    <option value="">Без</option>
-                                    <option value="45deg">Фаска 45°</option>
-                                    <option value="45deg-h4">Фаска 45° - Подлепка</option>
-                                    <option value="45deg-min">Минимална Фаска 45°</option>
-                                    <option value="45deg-min-h4">Минимална Фаска 45° - Подлепка</option>
-                                    <option value="full-rounded">Двустранно заобляне</option>
-                                    <option value="semi-rounded">Заобляне</option>
-                                    <option value="semi-rounded-h4">Заобляне - Подлепка</option>
-                                </select>
-                            </div>
-                        )}
+                        <motion.div
+                            ref={dropdownRef}
+                            initial="hidden"
+                            animate="visible"
+                            exit="exit"
+                            variants={dropdownVariants}
+                            transition={{ duration: 0.25 }}
+                            style={{ width: menuWidth ? `${menuWidth}px` : 'auto' }}
+                            className="bg-white rounded-xl shadow-md px-4 py-3 relative "                        >
 
-                        {activeMenu === 'driptray' && (
-                            <div>
-                                <p
-                                    onClick={() => toggleMenu('driptray')}
-                                    className="absolute top-1 right-1 bg-gray-200 p-0.5 rounded-full cursor-pointer"
-                                >
-                                    <X size={14} />
-                                </p>
-                                <label className="block text-sm font-semibold mb-1">Капкобран</label>
-                                <select
-                                    value={dripTray}
-                                    disabled={dripTrayDisabled}
-                                    onChange={(e) => setDripTray(e.target.value)}
-                                    className="border rounded p-1 text-sm"
-                                >
-                                    <option value="">Без</option>
-                                    <option value="one">Едностранен</option>
-                                    <option value="two">Двустранен</option>
-                                </select>
-                            </div>
-                        )}
+                            {activeMenu === 'chamfer' && (
+                                <div>
+                                    <p
+                                        onClick={() => toggleMenu('chamfer')}
+                                        className="absolute top-1 right-1 bg-gray-200 p-0.5 rounded-full cursor-pointer"
+                                    >
+                                        <X size={14} />
+                                    </p>
+                                    <label className="block text-sm font-semibold mb-1">Фаска</label>
+                                    <select
+                                        value={bevel}
+                                        onChange={handleBevelChange}
+                                        className="border rounded p-1 text-sm w-full"
+                                    >
+                                        <option value="">Без</option>
+                                        <option value="45deg">Фаска 45°</option>
+                                        <option value="45deg-h4">Фаска 45° - Подлепка</option>
+                                        <option value="45deg-min">Минимална Фаска 45°</option>
+                                        <option value="45deg-min-h4">Минимална Фаска 45° - Подлепка</option>
+                                        <option value="full-rounded">Двустранно заобляне</option>
+                                        <option value="semi-rounded">Заобляне</option>
+                                        <option value="semi-rounded-h4">Заобляне - Подлепка</option>
+                                    </select>
+                                </div>
+                            )}
 
-                        {activeMenu === 'finishing' && (
-                            <div>
-                                <p
-                                    onClick={() => toggleMenu('finishing')}
-                                    className="absolute top-1 right-1 bg-gray-200 p-0.5 rounded-full cursor-pointer"
-                                >
-                                    <X size={14} />
-                                </p>
-                                <label className="block text-sm font-semibold mb-1">Завършек</label>
-                                <select
-                                    value={finishType}
-                                    onChange={(e) => setFinishType(e.target.value)}
-                                    className="border rounded p-1 text-sm min-w-[150px]"
-                                >
-                                    <option value="glowing">Гланц</option>
-                                    <option value="matte">Матиран</option>
-                                    <option value="bush">Бучардисан</option>
-                                    <option value="skin">Кожа</option>
-                                </select>
-                            </div>
-                        )}
+                            {activeMenu === 'driptray' && (
+                                <div>
+                                    <p
+                                        onClick={() => toggleMenu('driptray')}
+                                        className="absolute top-1 right-1 bg-gray-200 p-0.5 rounded-full cursor-pointer"
+                                    >
+                                        <X size={14} />
+                                    </p>
+                                    <label className="block text-sm font-semibold mb-1">Капкобран</label>
+                                    <select
+                                        value={dripTray}
+                                        disabled={dripTrayDisabled}
+                                        onChange={(e) => setDripTray(e.target.value)}
+                                        className="border rounded p-1 text-sm w-full"
+                                    >
+                                        <option value="">Без</option>
+                                        <option value="one">Едностранен</option>
+                                        <option value="two">Двустранен</option>
+                                    </select>
+                                </div>
+                            )}
 
-                        {activeMenu === 'sunlight' && (
-                            <div >
-                                <p
-                                    onClick={() => toggleMenu('sunlight')}
-                                    className="absolute top-1 right-0 bg-gray-200 p-0.5 rounded-full cursor-pointer"
-                                >
-                                    <X size={14} />
-                                </p>
-                                <label className="block text-sm font-semibold mb-1">Светлина</label>
-                                <select
-                                    value={sunMode}
-                                    onChange={(e) => setSunMode(e.target.value)}
-                                    className="border rounded p-1 text-sm min-w-[150px]"
-                                >
-                                    {/* <option value="auto">Автоматично</option> */}
-                                    <option value="day">Ден</option>
-                                    <option value="night">Нощ</option>
-                                </select>
-                            </div>
-                        )}
-                    </motion.div>
+                            {activeMenu === 'finishing' && (
+                                <div>
+                                    <p
+                                        onClick={() => toggleMenu('finishing')}
+                                        className="absolute top-1 right-1 bg-gray-200 p-0.5 rounded-full cursor-pointer"
+                                    >
+                                        <X size={14} />
+                                    </p>
+                                    <label className="block text-sm font-semibold mb-1">Завършек</label>
+                                    <select
+                                        value={finishType}
+                                        onChange={(e) => setFinishType(e.target.value)}
+                                        className="border rounded p-1 text-sm w-full"
+                                    >
+                                        <option value="glowing">Гланц</option>
+                                        <option value="matte">Матиран</option>
+                                        <option value="bush">Бучардисан</option>
+                                        <option value="skin">Кожа</option>
+                                    </select>
+                                </div>
+                            )}
+
+                            {activeMenu === 'sunlight' && (
+                                <div >
+                                    <p
+                                        onClick={() => toggleMenu('sunlight')}
+                                        className="absolute top-1 right-0 bg-gray-200 p-0.5 rounded-full cursor-pointer"
+                                    >
+                                        <X size={14} />
+                                    </p>
+                                    <label className="block text-sm font-semibold mb-1">Светлина</label>
+                                    <select
+                                        value={sunMode}
+                                        onChange={(e) => setSunMode(e.target.value)}
+                                        className="border rounded p-1 text-sm w-full"
+                                    >
+                                        {/* <option value="auto">Автоматично</option> */}
+                                        <option value="day">Ден</option>
+                                        <option value="night">Нощ</option>
+                                    </select>
+                                </div>
+                            )}
+                        </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
 
