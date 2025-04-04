@@ -552,7 +552,6 @@ export default function BabylonScene() {
             const isInsideMenu = menuRef.current?.contains(event.target);
 
             if (!isInsideDropdown && !isInsideMenu) {
-                console.log('Clicked outside — closing menu');
                 setActiveMenu(null);
             }
         };

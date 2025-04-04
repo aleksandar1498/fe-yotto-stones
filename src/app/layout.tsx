@@ -12,8 +12,7 @@ import CookieBanner from "@/components/common/CookieBanner";
 import ReduxProvider from "@/providers/ReduxProvider";
 import PersistProvider from "@/providers/PersistProvider";
 import CookieSettingsProvider from "@/providers/CookieSettingsProvider";
-import { PersistGate } from "redux-persist/integration/react";
-import { persistor } from "@/lib/store";
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import { useEffect } from "react";
 
 const geistSans = Geist({
@@ -74,6 +73,7 @@ export default function RootLayout({
             </CookieSettingsProvider>
           </PersistProvider>
         </ReduxProvider>
+        <SpeedInsights />
       </body>
     </html>
   );

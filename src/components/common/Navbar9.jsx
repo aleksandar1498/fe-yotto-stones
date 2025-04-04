@@ -92,20 +92,6 @@ export default function Navbar() {
     </AnimatePresence>
   ), [activeDropdown, dispatch]);
 
-  // useEffect(() => {
-  //   function handleClickOutside(event) {
-  //     console.log(activeDropdown);
-  //     if ((dropdownRef.current && !dropdownRef.current.contains(event.target) && dropdownEdgesRef.current && !dropdownEdgesRef.current.contains(event.target))) {
-  //       console.log("Clicked outside");
-  //       setActiveDropdown(null);
-  //     }
-  //   }
-  //   document.addEventListener("mousedown", handleClickOutside);
-  //   return () => {
-  //     document.removeEventListener("mousedown", handleClickOutside);
-  //   };
-  // }, []);
-
   return (
     <>
       <nav className="bg-white text-black w-screen top-0 z-50 py-4 shadow-md left-0 right-0">
