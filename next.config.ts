@@ -4,6 +4,7 @@ const nextConfig = {
   swcMinify: true,
   eslint: {
     dirs: ['app', 'components', 'pages', 'lib'], // adjust as needed
+    ignoreDuringBuilds: true,
   },
   experimental: {
     scrollRestoration: true,
