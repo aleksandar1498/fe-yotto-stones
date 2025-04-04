@@ -94,6 +94,8 @@
 // components/CTASection.js
 
 import React from 'react';
+import { FaPhoneVolume } from "react-icons/fa6";
+
 
 const CTASection = () => {
   return (
@@ -111,9 +113,7 @@ const CTASection = () => {
             href="tel:+359123456789"
             className="bg-darkGold  text-white py-4 px-8 rounded-full text-lg font-semibold transform transition-all duration-300 hover:scale-105 hover:bg-darkGoldHover hover:shadow-xl pulse-animation flex items-center space-x-3"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="currentColor" className="text-white" viewBox="0 0 24 24" strokeWidth="2">
-              <path d="M6.62 10.79c.93-.93 1.51-2.31 1.51-3.79V5c0-1.1-.9-2-2-2h-3C1.9 3 1 3.9 1 5v7c0 1.1.9 2 2 2h3c1.1 0 2-.9 2-2v-2.79c0-.68.27-1.32.75-1.8l3.72-3.72c.48-.48 1.12-.75 1.8-.75h.79c1.1 0 2 .9 2 2v3.5c0 1.48-.58 2.86-1.51 3.79l-3.72 3.72c-.48.48-.75 1.12-.75 1.8v3.09c0 1.1.9 2 2 2h3c1.1 0 2-.9 2-2v-7c0-1.1-.9-2-2-2h-3c-1.1 0-2 .9-2 2v.79c0 .68-.27 1.32-.75 1.8l-3.72 3.72c-.48.48-1.12.75-1.8.75h-.79c-1.1 0-2-.9-2-2V8.5c0-1.48.58-2.86 1.51-3.79z" />
-            </svg>
+            <FaPhoneVolume />
             <span>Обадете се</span>
           </a>
         </div>

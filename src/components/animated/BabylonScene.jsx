@@ -696,7 +696,7 @@ export default function BabylonScene() {
             </AnimatePresence>
 
             {/* Bottom Icon Menu */}
-            <div ref={menuRef} className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-white rounded-xl px-6 py-3 shadow-md flex gap-6 z-10 items-center">
+            <div ref={menuRef} className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-white rounded-xl px-6 py-3 shadow-md flex gap-6 z-[2001] items-center">
                 {/* Finishing */}
                 <div className="relative flex flex-col items-center hover:bg-slate-400 hover:bg-opacity-30 rounded-lg p-2 transition duration-200">
                     <button onClick={() => toggleMenu('finishing')} className="flex flex-col items-center relative">

@@ -5,8 +5,11 @@ import "slick-carousel/slick/slick-theme.css";
 import "./globals.css";
 import Navbar from "@/components/common/Navbar9";
 import Footer1 from "@/components/common/Footer1";
+import CallButton from "@/components/common/CallButton";
+import CookieBanner from "@/components/common/CookieBanner";
 import ReduxProvider from "@/providers/ReduxProvider";
 import PersistProvider from "@/providers/PersistProvider";
+import CookieSettingsProvider from "@/providers/CookieSettingsProvider";
 import { PersistGate } from "redux-persist/integration/react";
 import { persistor } from "@/lib/store";
 
@@ -47,9 +50,13 @@ export default function RootLayout({
       >
         <ReduxProvider>
           <PersistProvider>
+            <CookieSettingsProvider>
             <Navbar />
             {children}
             <Footer1 />
+            <CallButton />
+            <CookieBanner />
+            </CookieSettingsProvider>
           </PersistProvider>
         </ReduxProvider>
       </body>

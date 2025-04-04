@@ -280,6 +280,21 @@ body {
   }
 }
 
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.pulse-animation-2 {
+  animation: pulse 2s infinite;
+}
+
+
 .flip-card {
   transform-style: preserve-3d;
   perspective: 1000px;

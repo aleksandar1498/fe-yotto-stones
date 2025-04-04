@@ -47,7 +47,7 @@ export default function CompanyOfferings() {
     <section className="py-20 px-8 bg-gray-100 text-gray-900" id="offerings">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center">
         <div className="text-center">
-          <p className='text-3xl tracking-widest  uppercase subtitle pb-4'>  Нашите изделия </p>
+          <p className='text-3xl tracking-widest  uppercase subtitle pb-4'>  Какво предлагаме </p>
           <p className="text-lg mb-6">
             Продукти от мрамор, варовик и гранит , подходящи за
             строителство, ремонт и обновяване на жилищни и търговски пространства.

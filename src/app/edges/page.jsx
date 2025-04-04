@@ -1,63 +1,56 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import Link from "next/link";
 import PageHeader from "@/components/common/PageHeader";
 import BabylonScene from "@/components/animated/BabylonScene";
 import FullScreenModal from "@/components/common/FullScreenModal";
 import { useDispatch, useSelector } from "react-redux";
-import { closeModal } from "@/redux/modalSlice";
+import { openModal, closeModal } from "@/redux/modalSlice";
 
 const edges = [
     {
         title: "Полиран кант с фаска 5мм",
-        description:
-            "Леко скосен и полиран ръб с фаска 5 мм, което намалява риска от отчупване и придава елегантност.",
+        description: "Леко скосен и полиран ръб с фаска 5 мм...",
         image: "/assets/images/edge_types/1-2-Bevel-Edge-new.png",
     },
     {
         title: "Полиран кант с минимална фаска",
-        description:
-            "Много леко заобляне или фаска, запазваща естествения вид на материала, но с омекотен ръб за безопасност.",
+        description: "Много леко заобляне или фаска, запазваща естествения вид...",
         image: "/assets/images/edge_types/Eased-Edge-new.png",
     },
     {
         title: "Eдностранно закръгление ¼ R",
-        description:
-            "Меко закръглен ръб, който предлага баланс между елегантност и практичност.",
+        description: "Меко закръглен ръб, който предлага баланс между елегантност и практичност.",
         image: "/assets/images/edge_types/1-4-Rounded-Top-Bottom-R-new.png",
     },
     {
         title: "Полирано чело с минимална фаска – подленка 20мм+20мм",
-        description:
-            "Гладко полиран ръб с леко заобляне или фаска, който съчетава издръжливост и стилен завършек.",
+        description: "Гладко полиран ръб с леко заобляне...",
         image: "/assets/images/edge_types/Eased-Edge-new.png",
     },
     {
         title: "Двустранно закръгление ½ R – подленка 20мм+20мм",
-        description:
-            "Гладки, заоблени ръбове от двете страни, създаващи елегантен завършек, подходящ за плотове и стълбища.",
+        description: "Гладки, заоблени ръбове от двете страни...",
         image: "/assets/images/edge_types/Full-Bullnose-U30-R-new.png",
     },
     {
         title: "Едностранна фаска – подленка 20мм+20мм",
-        description:
-            "Ръб с изрязана фаска, осигуряваща остър и изчистен външен вид, често използван в съвременния дизайн.",
+        description: "Ръб с изрязана фаска, осигуряваща остър и изчистен външен вид...",
         image: "/assets/images/edge_types/1-2-Bevel-Edge-new-h4.png",
     },
     {
         title: "Едностранно закръгление ¼ R – подленка 20мм+20мм",
-        description:
-            "Едностранно заоблен ръб, който придава мекота на дизайна, като същевременно запазва модерна визия.",
+        description: "Едностранно заоблен ръб, който придава мекота на дизайна...",
         image: "/assets/images/edge_types/1-4-Rounded-Top-Bottom-R-new.png",
     },
 ];
 
-const EdgeList = () => {
+export default function EdgeList() {
     const isModalOpened = useSelector((state) => state.modal.isModalOpened);
     const dispatch = useDispatch();
+    const prefersReducedMotion = useReducedMotion();
 
-    
     return (
         <>
             <PageHeader
@@ -65,48 +58,63 @@ const EdgeList = () => {
                 subtitle="Нашите висококачествени решения за вашите нужди"
                 backgroundImage="/assets/images/services-header.jpg"
             />
-            <section className="bg-gray-100 py-20 px-5 md:px-20 bg-cover bg-center bg-no-repeat">
-                {/* Intro Section */}
-                {/* Enhanced Heading Section */}
-                {/* Intro Section with Integrated 3D CTA */}
-                <div className="max-w-6xl mx-auto text-center md:text-left mb-28 flex flex-col md:flex-row items-center gap-10">
-                    {/* Left: Text Content */}
+
+            <main className="bg-gray-100 py-20 px-5 md:px-20 bg-cover bg-no-repeat">
+                {/* Intro */}
+                <section className="max-w-6xl mx-auto mb-28 flex flex-col md:flex-row items-center gap-10">
                     <div className="md:w-1/2">
-                        <h2 className="text-3xl md:text-5xl font-semibold text-darkGold uppercase mb-6 leading-tight">
-                            Изборът на завършек <br /> прави разликата
-                        </h2>
+                        <h1 className="text-4xl md:text-5xl font-bold text-darkGold uppercase mb-6 leading-tight">
+                            Изборът на завършек прави разликата
+                        </h1>
                         <p className="text-lg text-gray-700 leading-relaxed">
-                            Всеки детайл има значение, когато става въпрос за изработка на каменни плотове и интериорни повърхности.
-                            Видът на ръбовете не само оформя цялостния дизайн, но също така влияе върху <span className="font-semibold text-darkGold">устойчивостта и безопасността</span> на материала.
+                            Всеки детайл има значение...
+                            <span className="font-semibold text-darkGold">устойчивостта и безопасността</span>.
                         </p>
-                        <ul className="mt-6 space-y-3 text-gray-600">
-                            <li className="flex items-center gap-3">
-                                <img src="/assets/icons/staircase.png" alt="design icon" className="w-8 h-8" />
-                                <span><span className="text-darkGold font-semibold">Естетика</span>: Персонализирайте визията си – от модерни до класически форми.</span>
-                            </li>
-                            <li className="flex items-center gap-3">
-                                <img src="/assets/icons/durable.png" alt="durability icon" className="w-8 h-8" />
-                                <span><span className="text-darkGold font-semibold">Издръжливост</span>: Намалете риска от отчупване и повишете устойчивостта на камъка.</span>
-                            </li>
-                            <li className="flex items-center gap-3">
-                                <img src="/assets/icons/shield.png" alt="safety icon" className="w-8 h-8" />
-                                <span><span className="text-darkGold font-semibold">Безопасност</span>: Изберете заоблени ръбове за по-сигурни повърхности.</span>
-                            </li>
+                        <ul className="mt-6 space-y-4 text-gray-600">
+                            {[
+                                {
+                                    icon: "/assets/icons/staircase.png",
+                                    title: "Естетика",
+                                    desc: "Персонализирайте визията си – от модерни до класически форми.",
+                                },
+                                {
+                                    icon: "/assets/icons/durable.png",
+                                    title: "Издръжливост",
+                                    desc: "Намалете риска от отчупване и повишете устойчивостта.",
+                                },
+                                {
+                                    icon: "/assets/icons/shield.png",
+                                    title: "Безопасност",
+                                    desc: "Изберете заоблени ръбове за по-сигурни повърхности.",
+                                },
+                            ].map((item, i) => (
+                                <li key={i} className="flex items-center gap-3">
+                                    <img
+                                        src={item.icon}
+                                        alt={`${item.title} иконка`}
+                                        className="w-8 h-8"
+                                        loading="lazy"
+                                    />
+                                    <span>
+                                        <strong className="text-darkGold">{item.title}</strong>: {item.desc}
+                                    </span>
+                                </li>
+                            ))}
                         </ul>
 
-                        {/* CTA Button Below Text */}
-                        <div className="mt-10 rounded-xl  p-6 ">
-                            <h4 className="text-xl font-semibold text-gray-800 mb-2">
+                        {/* CTA */}
+                        <div className="mt-10 p-6 rounded-xl bg-white shadow">
+                            <h2 className="text-xl font-semibold text-gray-800 mb-2">
                                 Искате да видите как изглежда завършекът в 3D?
-                            </h4>
+                            </h2>
                             <p className="text-gray-600 text-sm mb-4">
                                 Персонализирайте вашия избор в реалистична среда.
                             </p>
                             <motion.button
-                                initial={{ opacity: .6 }}
+                                initial={{ opacity: 0.8 }}
                                 whileHover={{ opacity: 1 }}
-                                whileTap={{ scale: 0.95 }}
-                                onClick={() => setIsModalOpen(true)}
+                                whileTap={{ scale: 0.97 }}
+                                onClick={() => dispatch(openModal(true))}
                                 className="w-full px-4 py-2 bg-darkGold text-white rounded-md font-semibold hover:bg-gold-700 transition"
                             >
                                 Визуализирай завършек в 3D
@@ -114,65 +122,57 @@ const EdgeList = () => {
                         </div>
                     </div>
 
-                    {/* Right: Feature Image */}
-                    <div className="md:w-1/2 flex justify-end relative">
+                    {/* Feature Image */}
+                    <div className="md:w-1/2 flex justify-end">
                         <motion.img
                             src="/assets/images/edge_types/featured-edge.jpg"
-                            alt="Marble edge finishes"
+                            alt="Примерен каменен ръб"
                             className="rounded-lg shadow-lg w-full max-w-md"
-                            initial={{ opacity: 0, scale: 0.8, x: 100 }}
-                            whileInView={{ opacity: 1, scale: 1, x: 0 }}
-                            transition={{ duration: 0.8, ease: "easeOut" }}
-                            viewport={{ once: true }}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            whileInView={{ opacity: 1, scale: 1 }}
+                            transition={{ duration: 0.8 }}
+                            loading="lazy"
                         />
                     </div>
-                </div>
-
+                </section>
 
                 {/* Edge Types List */}
-                <div className="max-w-6xl mx-auto space-y-16 mt-10">
+                <section className="max-w-6xl mx-auto space-y-20">
                     {edges.map((edge, index) => (
-                        <motion.div
-                            key={index}
+                        <motion.article
+                            key={`edge-${index}`}
+                            className="flex flex-col md:flex-row items-center gap-10 md:odd:flex-row-reverse"
                             initial={{ opacity: 0, y: 50 }}
                             whileInView={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.6, ease: "easeOut" }}
-                            viewport={{ once: false }}
-                            className="flex flex-col md:flex-row items-center md:odd:flex-row-reverse gap-10"
+                            transition={{ duration: 0.6, delay: index * 0.1 }}
+                            viewport={{ once: true }}
                         >
-                            <motion.img
+                            <img
                                 src={edge.image}
                                 alt={edge.title}
                                 className="w-full md:w-1/2 rounded-lg"
-                                initial={{ opacity: 0, y: 50 }}
-                                whileInView={{ opacity: 1, y: 0, scale: 1.05 }}
-                                transition={{ duration: 1.2, ease: "easeOut" }}
-                                viewport={{ once: false }}
+                                loading="lazy"
                             />
                             <div className="md:w-1/2 text-center md:text-left">
-                                <h3 className="text-2xl font-bold subtitle text-darkGold">
-                                    {edge.title}
-                                </h3>
-                                <p className="text-gray-600 mt-3">{edge.description}</p>
+                                <h2 className="text-2xl font-bold text-darkGold mb-2">{edge.title}</h2>
+                                <p className="text-gray-600">{edge.description}</p>
                             </div>
-                        </motion.div>
+                        </motion.article>
                     ))}
-                </div>
-                {/* CTA Section */}
-                
+                </section>
 
-                {/* Modal with BabylonScene */}
-                <FullScreenModal isOpen={typeof isModalOpened !== 'undefined' && isModalOpened } onClose={() => dispatch(closeModal())}>
+                {/* Modal for 3D scene */}
+                <FullScreenModal isOpen={isModalOpened} onClose={() => dispatch(closeModal())}>
                     <BabylonScene />
                 </FullScreenModal>
-                {/* CTA Section */}
-                <div className="max-w-4xl mx-auto text-center mt-20 bg-white p-10 shadow-lg rounded-lg">
-                    <h3 className="text-2xl font-bold text-gray-800">
+
+                {/* Contact CTA */}
+                <section className="max-w-4xl mx-auto text-center mt-20 bg-white p-10 shadow-lg rounded-lg">
+                    <h2 className="text-2xl font-bold text-gray-800">
                         Нуждаете се от помощ при избора на завършек?
-                    </h3>
+                    </h2>
                     <p className="text-gray-700 mt-4">
-                        Нашите експерти са тук, за да ви помогнат да изберете най-подходящия ръб за вашия плот, стълбище или облицовка.
-                        Свържете се с нас за безплатна консултация и професионален съвет!
+                        Нашите експерти са тук, за да ви помогнат...
                     </p>
                     <Link href="/contact">
                         <motion.button
@@ -183,10 +183,8 @@ const EdgeList = () => {
                             Свържете се с нас
                         </motion.button>
                     </Link>
-                </div>
-            </section>
+                </section>
+            </main>
         </>
     );
-};
-
-export default EdgeList;
+}
