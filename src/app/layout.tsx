@@ -40,6 +40,10 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;700&display=swap"
           rel="stylesheet"
         />
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
+        />
         {/* <link
           rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
@@ -51,11 +55,11 @@ export default function RootLayout({
         <ReduxProvider>
           <PersistProvider>
             <CookieSettingsProvider>
-            <Navbar />
-            {children}
-            <Footer1 />
-            <CallButton />
-            <CookieBanner />
+              <Navbar />
+              {children}
+              <Footer1 />
+              <CallButton />
+              <CookieBanner />
             </CookieSettingsProvider>
           </PersistProvider>
         </ReduxProvider>
