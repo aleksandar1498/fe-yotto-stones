@@ -1,11 +1,14 @@
 "use client";
 
 import React from "react";
-import Slider from "react-slick";
 import "./slideshow.css";
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
 import ScrollLink from "@/components/wrappers/ScrollLink";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 
+const Slider = dynamic(() => import("react-slick"), { ssr: false });
 // Moved outside component to avoid re-creation on each render
 const images = [
   "https://firebasestorage.googleapis.com/v0/b/yotto-stones.firebasestorage.app/o/images%2Fbase%2Fstairs.webp?alt=media&token=1680693e-1b76-45e5-9653-4711e086903b",
@@ -33,8 +36,7 @@ export default function Header5() {
             <img
               src={image}
               alt={`Slide ${index + 1}`}
-              className="h-100"
-              loading="lazy" // lazy-load images for performance
+              className="h-100" // lazy-load images for performance
             />
             <div className="absolute inset-0 bg-black/40 backdrop-blur-[0px]" />
           </div>
@@ -50,7 +52,7 @@ export default function Header5() {
           Открийте уникалната красота на природния камък. Нашите луксозни решения ще преобразят вашето пространство.
         </p>
         <div className="mt-6 md:mt-8 flex justify-center gap-4">
-          <ScrollLink  href="/" sectionTag="about-section">
+          <ScrollLink href="/" sectionTag="about-section">
             <button className="px-6 py-3 text-lg font-semibold rounded-lg text-white hover:bg-white/20 shadow-lg">
               Научи повече
             </button>
