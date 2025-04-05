@@ -28,8 +28,8 @@ export default function Contact14({ includeHeading = true }) {
                 Имейл
               </h3>
               <p className="mb-2">Свържете се с нас</p>
-              <a className="underline" href="mailto:info@example.com">
-                info@example.com
+              <a className="underline" href="mailto:yottostones@gmail.com">
+                yottostones@gmail.com
               </a>
             </div>
 
@@ -41,11 +41,11 @@ export default function Contact14({ includeHeading = true }) {
                 Телефон
               </h3>
               <p className="mb-2">Обадете се на нас</p>
-              <a className="block underline mb-1" href="tel:+359888123456">
-                +359 888 123 456
+              <a className="block underline mb-1" href="tel:+359895198805">
+                +359 895 19 8805
               </a>
-              <a className="block underline" href="tel:+359888654321">
-                +359 888 654 321
+              <a className="block underline" href="tel:+359885053680">
+                +359 885 05 3680
               </a>
             </div>
 

@@ -65,8 +65,8 @@ export default function PrivacyPolicy() {
         <p>
           Ако имате въпроси относно тази политика или искате да упражните някое от горните си права, моля свържете се с
           нас на имейл:{" "}
-          <a href="mailto:info@example.com" className="underline text-royalGold hover:text-royalGold/70">
-            info@example.com
+          <a href="mailto:yottostones@gmail.com" className="underline text-royalGold hover:text-royalGold/70">
+            yottostones@gmail.com
           </a>
           .
         </p>

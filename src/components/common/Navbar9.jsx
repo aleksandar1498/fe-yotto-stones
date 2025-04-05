@@ -100,7 +100,7 @@ export default function Navbar() {
 
           <div className="flex  w-full px-6 justify-start sm:justify-center">
             {/* <button className="absolute top-2 left-2 hover:underline hover:text-darkGoldHover text-royalGold px-4 my-2 leading-10 rounded-2xl hidden lg:block justify-end">
-              <a href={`tel:${+3590895198805}`}>тел. 0895198805</a>
+              <a href={`tel:+359895198805`}>тел. 0895198805</a>
             </button> */}
             {/* Centered Logo */}
             <div className="text-3xl font-bold tracking-wide uppercase text-center justify-center">

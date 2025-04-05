@@ -13,7 +13,7 @@ export default function CallButton() {
                 onTouchStart={() => setHovered(true)}
                 onTouchEnd={() => setHovered(false)}
                 onBlur={() => setHovered(false)}
-                onClick={() => (window.location.href = "tel:+359123456789")}
+                onClick={() => (window.location.href = "tel:+359895198805")}
                 className={`relative flex items-center justify-center bg-royalGold text-white px-5 py-4 rounded-full shadow-lg transition-all duration-300 hover:bg-royalGold/90 focus:outline-none overflow-hidden group`}
                 aria-label="Свържи се"
             >
