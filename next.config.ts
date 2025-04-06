@@ -1,7 +1,6 @@
 // next.config.ts
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   eslint: {
     dirs: ['app', 'components', 'pages', 'lib'], // adjust as needed
     ignoreDuringBuilds: true,

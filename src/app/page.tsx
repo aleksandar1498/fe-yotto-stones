@@ -9,6 +9,7 @@ import { db } from "@/lib/firebase";
 import { setMaterials } from "@/redux/materialSlice";
 
 import Header5 from "@/components/pages/home/Header5";
+import Seo from "@/components/common/Seo";
 import CompanyOfferings from "@/components/pages/home/CompanyOfferings";
 import IntroSection from "@/components/pages/home/IntroSection";
 import AboutUs from "@/components/pages/home/AboutUs";
@@ -63,6 +64,7 @@ export default function Home() {
 
   return (
     <>
+      <Seo />
       <Header5 />
       <IntroSection />
       <AboutUs />

@@ -83,27 +83,20 @@ export default function CompanyOfferings() {
             className="relative group overflow-hidden rounded-lg shadow-md"
             // whileHover={{ scale: 1.1, transition: ".3s" }}
             initial={{ y: 0, opacity: 0 }}
-            whileInView={{ y: 100, opacity: 1 }}
+            whileInView={{ y: 50, opacity: 1 }}
             // animate={{ opacity: 1 }}
             transition={{ duration: 0.5, delay: index * 0.3 }}
           >
             <img src={item.image} alt={item.title} className="w-full h-96 object-cover rounded-lg" />
             {isMobile ? <>
-              <motion.div
-                initial={{ opacity: 0 }}
-                whileInView={{ opacity: 1 }}
-                // animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: index * 0.3 }} className="absolute inset-0 text-center w-full text-royalGold  z-20 ">
+              <div
+                className="absolute inset-0 text-center w-full text-royalGold  z-20 ">
                 <h3 className="text-2xl font-bold space-x-4 p-4 ">{item.title}</h3>
-              </motion.div>
-              <motion.div
-                initial={{ opacity: 0 }}
-                whileInView={{ opacity: 1 }}
-                // animate={{ opacity: 1 }}
-                transition={{ duration: 0.5, delay: index * 0.3 }}
+              </div>
+              <div
                 className="absolute inset-0 bg-black bg-opacity-50 transition-opacity flex flex-col justify-center items-center text-white p-4">
                 <p className="text-lg text-center mt-2 py-8 max-w-[90%]">{item.description}</p>
-              </motion.div>
+              </div>
             </> :
               <>
                 <div className="absolute inset-0 text-center w-full text-darkGold hover:text-royalGold  z-20 ">
