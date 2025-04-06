@@ -59,7 +59,7 @@ export default function Contact14({ includeHeading = true }) {
               <p className="mb-2">ул. "Владимир Зограф" 121, 1229 София, България</p>
               <div className="mt-5 md:mt-6">
                 <a
-                  href="https://www.google.com/maps/place/42.7297118,23.2787518"
+                  href="https://www.google.com/maps/dir/?api=1&destination=42.7297118,23.2787518&waypoints=42.731286,23.286132"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center bg-royalGold p-2 rounded-lg text-white group gap-2 text-primary font-medium transition-all duration-300 hover:bg-royalGold/50 focus:outline-none"
