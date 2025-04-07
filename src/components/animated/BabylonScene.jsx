@@ -7,6 +7,29 @@ import { X } from 'lucide-react';
 import Image from 'next/image';
 
 
+function setupWatermarket(scene,sunMode) {
+    // Create watermark plane (smaller and repositioned)
+    const watermarkPlane = BABYLON.MeshBuilder.CreatePlane("watermarkPlane", { width: 2.2, height: 0.4 }, scene);
+    watermarkPlane.position = new BABYLON.Vector3(0, 0.2, -1.1); // Top-left position
+    watermarkPlane.rotation = new BABYLON.Vector3(Math.PI, 0, 0); // No rotation needed
+    watermarkPlane.scaling.x = -1; // ✅ Flip the plane horizontally to fix mirror effect
+    // Use Unlit PBR material to avoid lighting influence
+    const watermarkMaterial = new BABYLON.PBRMaterial("watermarkMat", scene);
+    const watermarkTexture = new BABYLON.Texture(sunMode === "day" ? "/assets/images/watermarket-bglight.png" : "/assets/images/watermarket-bgdark.png", scene, true, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+
+    watermarkMaterial.unlit = true; // No lighting
+    watermarkMaterial.albedoTexture = watermarkTexture;
+    watermarkMaterial.opacityTexture = watermarkTexture; // Maintain transparency
+    watermarkMaterial.backFaceCulling = false; // Show both sides
+    watermarkMaterial.alpha = 0.7; // Optional: adjust opacity
+
+    watermarkPlane.material = watermarkMaterial;
+
+    // Optional: Make it not pickable and always in the background
+    watermarkPlane.isPickable = false;
+    watermarkPlane.renderingGroupId = 0; // Draw first
+}
+
 function setupLights(scene, camera, sunMode = "auto") {
     // First: clear previous lights if any
     scene.lights.forEach(light => light.dispose());
@@ -174,6 +197,8 @@ const createScene = async (canvas, bevelType, dripTrayType, sunmode, finishType)
     camera.wheelPrecision = 70;
 
     setupLights(scene, camera, sunmode);
+
+    setupWatermarket(scene, sunmode);
 
     const material = createMaterial(scene, finishType); // Default to glowing finish
     // UNCOMMENT FROM HERE 
@@ -489,6 +514,8 @@ const createScene = async (canvas, bevelType, dripTrayType, sunmode, finishType)
 
     finalMesh.setVerticesData(BABYLON.VertexBuffer.UVKind, uvs, true);
     finalMesh.material = material;
+
+
 
     engine.runRenderLoop(() => {
         scene.render();
