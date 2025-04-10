@@ -20,7 +20,16 @@ export default {
         midnightBlue: "#1B1F3B",
         graphite: "#444444",
         carraraWhite: "#F8F8F8",
-      }
+      },
+      keyframes: {
+        'typing': {
+          '0%, 80%, 100%': { transform: 'scale(0)' },
+          '40%': { transform: 'scale(1)' },
+        },
+      },
+      animation: {
+        'typing-dot': 'typing 1.4s infinite ease-in-out',
+      },
     },
     plugins: [
       require("@xpd/tailwind-3dtransforms")

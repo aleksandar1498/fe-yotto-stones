@@ -9,6 +9,7 @@ import Navbar from "@/components/common/Navbar9";
 import Footer1 from "@/components/common/Footer1";
 import CallButton from "@/components/common/CallButton";
 import CookieBanner from "@/components/common/CookieBanner";
+import ChatWidget from "@/components/ai/ChatWidget";
 import ReduxProvider from "@/providers/ReduxProvider";
 import PersistProvider from "@/providers/PersistProvider";
 import CookieSettingsProvider from "@/providers/CookieSettingsProvider";
@@ -120,7 +121,8 @@ export default function RootLayout({
               <Navbar />
               {children}
               <Footer1 />
-              <CallButton />
+              {/* <CallButton /> */}
+              <ChatWidget />
               <CookieBanner />
             </CookieSettingsProvider>
           </PersistProvider>

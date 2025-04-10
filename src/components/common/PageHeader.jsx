@@ -49,7 +49,7 @@ const PageHeader = ({
 
   return (
     <header
-      className="relative w-full h-[300px] flex items-center justify-center text-white"
+      className="relative w-full h-[300px] flex items-center justify-center text-white mt-20"
       style={{
         backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url(${backgroundImage})`,
         backgroundSize: "cover",

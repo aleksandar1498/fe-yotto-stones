@@ -12,6 +12,7 @@ import ScrollLink from "../wrappers/ScrollLink";
 import { useDispatch, useSelector } from "react-redux";
 import { openModal } from "@/redux/modalSlice";
 import { motion, AnimatePresence } from "framer-motion";
+import { FaPhoneVolume } from "react-icons/fa";
 
 const slideVariants = {
   hidden: { x: "100%" },
@@ -94,19 +95,22 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="bg-white text-black w-screen top-0 z-50 py-4 shadow-md left-0 right-0">
+      <nav className="fixed bg-white text-black w-screen top-0 z-50 py-4 shadow-md left-0 right-0">
 
         <div className="container mx-auto flex flex-col items-center">
 
-          <div className="flex  w-full px-6 justify-start sm:justify-center">
-            {/* <button className="absolute top-2 left-2 hover:underline hover:text-darkGoldHover text-royalGold px-4 my-2 leading-10 rounded-2xl hidden lg:block justify-end">
-              <a href={`tel:+359895198805`}>тел. 0895198805</a>
-            </button> */}
+          <div className="flex w-full px-6 justify-start md:justify-center">
+            <button className="absolute top-14 md:top-[4.2rem] lg:top-20 left-2 hover:text-darkGoldHover text-black/60 px-4 my-2 leading-10 rounded-2xl flex items-center space-x-2">
+              <a href="tel:+359895198805" className="flex items-center space-x-2">
+                <FaPhoneVolume className="text-xl" />
+                <span>0895198805</span>
+              </a>
+            </button>
             {/* Centered Logo */}
             <div className="text-3xl font-bold tracking-wide uppercase text-center justify-center">
               <Link href="/">
                 <div className="flex flex-row justify-start font-thin">
-                  <img src="/assets/images/logo-2.svg" className="max-w-[250px] sm:max-w-[350px] " />
+                  <img src="/assets/images/logo-2.svg" className="max-w-[250px] md:max-w-[350px] " />
                   {/*                   
                   YOTTO ST<span><svg version="1.0" style={{ height: "1.4em", marginBottom: "0.3em", width: "1.5em" }} xmlns="http://www.w3.org/2000/svg" width="512.000000pt" height="512.000000pt" viewBox="0 0 512.000000 512.000000" preserveAspectRatio="xMidYMid meet">
                   <g transform="translate(0.000000,512.000000) scale(0.100000,-0.100000)" fill="#000" stroke="#000" strokeWidth="60">
@@ -171,7 +175,7 @@ m-1987 -789 l226 -288 -16 -417 c-10 -229 -18 -418 -19 -418 -8 -6 -1053 -121
           </div>
 
           {/* Mobile Menu Button */}
-          <button className="lg:hidden absolute right-6 top-4 py-4 z-[2000" onClick={() => setIsOpen(!isOpen)}>
+          <button className="lg:hidden absolute right-6 top-4 py-4 z-[2001]" onClick={() => setIsOpen(!isOpen)}>
             {isOpen ? <X className="w-6 h-6 " /> : <Menu className="w-6 h-6" />}
           </button>
 
@@ -205,7 +209,7 @@ m-1987 -789 l226 -288 -16 -417 c-10 -229 -18 -418 -19 -418 -8 -6 -1053 -121
                     <ScrollLink
                       href="/"
                       sectionTag="about-section"
-                      className="block hover:text-gray-400 py-4 pt-12"
+                      className="block hover:text-gray-400 py-4 pt-4 mt-10"
                       onClick={() => setIsOpen(false)}
                     >
                       За нас
