@@ -1,0 +1,51 @@
+.centered-plus::after {
+    content: '\26CC';
+    font-size: 50px;
+    display: block;
+    position: absolute;
+    top: calc(50%);
+    left: calc(50% - 22px);
+    color: #fff;
+    transition: .7s all ease-in-out;
+    font-weight: 200;
+    opacity: 0;
+}
+
+.centered-plus:hover::after {
+    opacity: 1;
+    transform: translateY(12px);
+}
+
+.vertical-number-box {
+    transform: rotate(-90deg);
+    left: 14px;
+    z-index: 10000;
+    position: absolute;
+    padding: 10p;
+    bottom: 30px;
+}
+
+.vertical-number-box .vertical-number {
+    width: 240px;
+    text-align: right;
+}
+
+.vertical-number {
+    font-size: 15px;
+    position: absolute;
+    color: rgba(255, 255, 255, 0.6);
+    font-weight: 400;
+    transition: 0.2s;
+}
+
+.vertical-number:after {
+    content: "";
+    width: 52px;
+    height: 2px;
+    display: inline-block;
+    background: #ffffff;
+    margin-left: 10px;
+    bottom: 9px;
+    position: absolute;
+    transition: all .2s;
+}
