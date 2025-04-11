@@ -8,7 +8,7 @@ let globalFactsCache = [];
 export async function embedGlobalFactsCache(language) {
   if (globalFactsCache.length > 0) return;
 
-  const texts = globalFacts.map(fact => fact[language] || fact['en']);
+  const texts = globalFacts.map((fact) => fact[language] || fact["en"]);
   const response = await openai.embeddings.create({
     model: "text-embedding-3-small",
     input: texts,
@@ -20,8 +20,29 @@ export async function embedGlobalFactsCache(language) {
   }));
 }
 
+export function getRelevantGlobalFacts(
+  queryEmbedding,
+  language,
+  threshold = 0.75,
+  maxFacts = 5
+) {
+  const texts = globalFacts.map((fact) => fact[language] || fact["en"]);
+
+  const scoredFacts = globalFactsCache.map((fact, index) => ({
+    similarity: cosineSimilarity(queryEmbedding, fact.embedding),
+    text: texts[index],
+  }));
+
+  return scoredFacts
+    .filter((fact) => fact.similarity >= threshold)
+    .sort((a, b) => b.similarity - a.similarity)
+    .slice(0, maxFacts)
+    .map((fact) => fact.text)
+    .join("\n");
+}
+
 export function getGlobalFacts(language) {
-  return globalFacts.map(fact => fact[language] || fact["en"]).join("\n");
+  return globalFacts.map((fact) => fact[language] || fact["en"]).join("\n");
 }
 
 export function cosineSimilarity(vecA, vecB) {
@@ -33,6 +54,14 @@ export function cosineSimilarity(vecA, vecB) {
 
 export function getMaxSimilarityScore(queryEmbedding) {
   return Math.max(
-    ...globalFactsCache.map(fact => cosineSimilarity(queryEmbedding, fact.embedding))
+    ...globalFactsCache.map((fact) =>
+      cosineSimilarity(queryEmbedding, fact.embedding)
+    )
   );
+}
+
+export function getAverageSimilarity(matches) {
+  if (!matches.length) return 0;
+  const totalScore = matches.reduce((acc, match) => acc + match.similarity, 0);
+  return totalScore / matches.length;
 }

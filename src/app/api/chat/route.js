@@ -1,7 +1,12 @@
 import { supabase } from "@/lib/ai/chatbot/supabase";
-import { getEmbedding, createCompletion } from "@/lib/ai/chatbot/openai"; 
+import { getEmbedding, createCompletion } from "@/lib/ai/chatbot/openai";
 import { searchSupabase } from "@/lib/ai/chatbot/supabase";
-import { getGlobalFacts, embedGlobalFactsCache, getMaxSimilarityScore } from "@/lib/ai/chatbot/utils";
+import {
+  getRelevantGlobalFacts,
+  embedGlobalFactsCache,
+  getMaxSimilarityScore,
+  getAverageSimilarity,
+} from "@/lib/ai/chatbot/utils";
 
 export async function POST(req) {
   try {
@@ -13,33 +18,46 @@ export async function POST(req) {
     // ✅ Step 2: Embed user query
     const queryEmbedding = await getEmbedding(message);
 
-    // ✅ Step 3: Similarity check with global facts
-    const maxSimilarity = getMaxSimilarityScore(queryEmbedding);
-    console.log(maxSimilarity);
+    // ✅ Step 3: Search Supabase vector store
 
-    const similarityThreshold = 0.75;
-    const isWeakContext = maxSimilarity < similarityThreshold;
-
-    // ✅ Step 4: Search Supabase vector store
+    // ✅ Step 4: Build final context
     const matches = await searchSupabase(queryEmbedding);
-    const contextText = matches.map(match => match.text).join("\n\n");
-    const globalFactsText = getGlobalFacts(language);
 
-    // ✅ Step 5: Build final context
+    const contextText = matches.map((match) => match.text).join("\n\n");
+    const globalFactsText = getRelevantGlobalFacts(queryEmbedding, language);
     const fullContext = [
       globalFactsText ? `Global Knowledge:\n${globalFactsText}` : "",
       contextText ? `Retrieved from website:\n${contextText}` : "",
-    ].filter(Boolean).join("\n\n");
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+
+    // ✅ Step 5: Calculate similarity scores
+    const maxSimilarityFacts = getMaxSimilarityScore(queryEmbedding);
+    const supabaseSimilarity = getAverageSimilarity(matches);
+
+    const fullContextStrentgh = (0.5 * maxSimilarityFacts) + (0.5 * supabaseSimilarity);
+    console.log("Full context strength:", fullContextStrentgh);
+    const similarityThreshold = 0.75;
+    const isWeakContext = fullContextStrentgh < similarityThreshold;
 
     // ✅ Step 6: Log if weak context
     if (isWeakContext) {
-      await supabase.from("chatbot_feedback").insert([{
+      const { data, error } = await supabase.from("chatbot_feedback").insert([{
         question: message,
         language,
         context_used: contextText,
         global_facts_used: globalFactsText,
-        similarity_score: maxSimilarity,
+        similarity_score: maxSimilarityFacts,
+        supabase_similarity_score: supabaseSimilarity,
+        full_context_strength: fullContextStrentgh
       }]);
+      
+      if (error) {
+        console.error("Supabase insert error:", error);
+      } else {
+        console.log("Supabase insert success:", data);
+      }
     }
 
     // ✅ Step 7: Prepare prompt dynamically

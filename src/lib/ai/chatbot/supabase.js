@@ -18,3 +18,4 @@ export async function searchSupabase(embedding) {
 
   return data;
 }
+
