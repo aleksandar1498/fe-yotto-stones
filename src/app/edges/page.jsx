@@ -180,7 +180,7 @@ export default function EdgeList() {
                                 },
                             ].map((item, i) => (
                                 <li key={i} className="flex items-center gap-3">
-                                    <Image fill
+                                    <img
                                         src={item.icon}
                                         alt={`${item.title} иконка`}
                                         className="w-8 h-8"
