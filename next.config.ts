@@ -9,6 +9,13 @@ const nextConfig = {
     scrollRestoration: true,
   },
   images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'firebasestorage.googleapis.com',
+        pathname: '/v0/b/yotto-stones.firebasestorage.app/o/**',
+      },
+    ],
     formats: ['image/webp'],
     minimumCacheTTL: 60,
   },

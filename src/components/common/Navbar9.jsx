@@ -2,10 +2,9 @@
 "use client";
 
 import "./navbar.css";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { ChevronDown, Menu, X } from "lucide-react";
 import { HiCubeTransparent } from "react-icons/hi"; // For “Видове завършек”
-import { TbHexagon } from "react-icons/tb";
 import { LuWand } from "react-icons/lu";
 import Link from "next/link";
 import ScrollLink from "../wrappers/ScrollLink";
@@ -106,7 +105,7 @@ export default function Navbar() {
             <div className="text-3xl font-bold tracking-wide uppercase text-center justify-center">
               <Link href="/">
                 <div className="flex flex-row justify-start font-thin">
-                  <img src="/assets/images/logo-2.svg" className="max-w-[250px] sm:max-w-[350px] " />
+                  <img src="/assets/images/logo-official-v2.svg" className="max-w-[125px] sm:max-w-[150px] " />
                   {/*                   
                   YOTTO ST<span><svg version="1.0" style={{ height: "1.4em", marginBottom: "0.3em", width: "1.5em" }} xmlns="http://www.w3.org/2000/svg" width="512.000000pt" height="512.000000pt" viewBox="0 0 512.000000 512.000000" preserveAspectRatio="xMidYMid meet">
                   <g transform="translate(0.000000,512.000000) scale(0.100000,-0.100000)" fill="#000" stroke="#000" strokeWidth="60">

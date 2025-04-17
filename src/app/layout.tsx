@@ -1,6 +1,3 @@
-"use client";
-
-import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
@@ -13,7 +10,7 @@ import ReduxProvider from "@/providers/ReduxProvider";
 import PersistProvider from "@/providers/PersistProvider";
 import CookieSettingsProvider from "@/providers/CookieSettingsProvider";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { useEffect } from "react";
+import Seo from "@/components/common/Seo";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -25,23 +22,33 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+export const metadata = {
+  title: "Yotto Stones - Мрамор и Гранит за вашия дом и бизнес",
+  description: "Открийте висококачествени естествени камъни за интериорни и екстериорни проекти.",
+  metadataBase: new URL("https://www.yottostones-bg.com"),
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+    shortcut: "/favicon.ico",
+  },
+  manifest: "/site.webmanifest",
+  other: {
+    "mask-icon": "/safari-pinned-tab.svg",
+    "theme-color": "#D4AF37",
+  },
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  useEffect(() => {
-    const setAppHeight = () => {
-      const doc = document.documentElement;
-      doc.style.setProperty("--app-height", `${window.innerHeight}px`);
-    };
-
-    setAppHeight();
-    window.addEventListener("resize", setAppHeight);
-
-    return () => window.removeEventListener("resize", setAppHeight);
-  }, []);
-
   return (
     <html lang="bg">
       <head>
@@ -53,46 +60,7 @@ export default function RootLayout({
           name="viewport"
           content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
         />
-
         <meta name="theme-color" content="#D4AF37" />
-        <meta name="robots" content="index, follow" />
-        <meta
-          name="keywords"
-          content="мрамор, гранит, естествен камък, интериор, екстериор, плотове, стъпала, облицовки, България, Yotto Stones"
-        />
-        <link rel="canonical" href="https://www.yottostones-bg.com/" />
-
-        {/* Open Graph / Facebook */}
-        <meta property="og:type" content="website" />
-        <meta property="og:locale" content="bg_BG" />
-        <meta
-          property="og:title"
-          content="Yotto Stones – Вашият партньор в създаването на уникални изделия от естествен камък"
-        />
-        <meta
-          property="og:description"
-          content="Открийте нашите решения от мрамор, гранит и естествен камък за перфектни интериорни и екстериорни проекти."
-        />
-        <meta property="og:url" content="https://www.yottostones-bg.com/" />
-        <meta
-          property="og:image"
-          content="https://firebasestorage.googleapis.com/v0/b/yotto-stones.firebasestorage.app/o/images%2Fbase%2Fstairs.webp?alt=media&token=1680693e-1b76-45e5-9653-4711e086903b"
-        />
-
-        {/* Twitter */}
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta
-          name="twitter:title"
-          content=" Yotto Stones – Вашият партньор в създаването на уникални изделия от естествен камък"
-        />
-        <meta
-          name="twitter:description"
-          content="Открийте нашите решения от мрамор, гранит и естествен камък за перфектни интериорни и екстериорни проекти."
-        />
-        <meta
-          name="twitter:image"
-          content="https://firebasestorage.googleapis.com/v0/b/yotto-stones.firebasestorage.app/o/images%2Fbase%2Fstairs.webp?alt=media&token=1680693e-1b76-45e5-9653-4711e086903b"
-        />
 
         {/* Favicons */}
         <link rel="icon" href="/assets/images/logo.svg" />
@@ -114,6 +82,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         style={{ height: "var(--app-height)" }}
       >
+        {/* <Seo /> */}
         <ReduxProvider>
           <PersistProvider>
             <CookieSettingsProvider>

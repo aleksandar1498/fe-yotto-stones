@@ -2,6 +2,7 @@
 
 import Materials from "@/components/common/Materials";
 import PageHeader from "@/components/common/PageHeader";
+import Seo from "@/components/common/Seo";
 import { motion } from "framer-motion";
 import {
   GiStoneCrafting,
@@ -12,6 +13,55 @@ import {
 export default function MaterialsClient() {
   return (
     <div>
+      <Seo
+        title="Материали за вашия проект – мрамор, гранит, варовик и оникс"
+        description="Открийте разнообразие от естествени камъни – мрамор, гранит, варовик и оникс. Изберете перфектния материал за интериорни и екстериорни проекти с Yotto Stones."
+        keywords="естествен камък, мрамор, гранит, варовик, оникс, интериор, екстериор, устойчиви материали, луксозни повърхности"
+        structuredData={{
+          "@context": "https://schema.org",
+          "@type": "ProductCatalog",
+          name: "Каталог с естествени камъни",
+          description:
+            "Yotto Stones предлага разнообразие от естествени камъни – мрамор, гранит, варовик и оникс за интериор и екстериор.",
+          provider: {
+            "@type": "Organization",
+            name: "Yotto Stones",
+            url: "https://www.yottostones-bg.com",
+          },
+          url: "https://www.yottostones-bg.com/materials",
+          numberOfItems: 4,
+          itemListElement: [
+            {
+              "@type": "Product",
+              name: "Мрамор",
+              description: "Елегантен и луксозен камък за класически визии.",
+              url: "https://www.yottostones-bg.com/materials/1",
+            },
+            {
+              "@type": "Product",
+              name: "Гранит",
+              description:
+                "Изключителна здравина и устойчивост за интензивна употреба.",
+              url: "https://www.yottostones-bg.com/materials/2",
+            },
+            {
+              "@type": "Product",
+              name: "Варовик",
+              description:
+                "Топли тонове и естествена текстура за уютни пространства.",
+              url: "https://www.yottostones-bg.com/materials/4",
+            },
+            {
+              "@type": "Product",
+              name: "Оникс",
+              description:
+                "Полупрозрачен и впечатляващ за дизайнерски акценти.",
+              url: "https://www.yottostones-bg.com/materials/3",
+            },
+          ],
+        }}
+      />
+
       <PageHeader
         title="Материали"
         subtitle="Красотата на природата в нашите ръце"

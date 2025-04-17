@@ -7,6 +7,8 @@ import BabylonScene from "@/components/animated/BabylonScene";
 import FullScreenModal from "@/components/common/FullScreenModal";
 import { useDispatch, useSelector } from "react-redux";
 import { openModal, closeModal } from "@/redux/modalSlice";
+import Seo from "@/components/common/Seo";
+import Image from "next/image";
 
 const edges = [
     {
@@ -49,10 +51,99 @@ const edges = [
 export default function EdgeList() {
     const isModalOpened = useSelector((state) => state.modal.isModalOpened);
     const dispatch = useDispatch();
-    const prefersReducedMotion = useReducedMotion();
 
     return (
         <>
+            <Seo
+                title="Видове обработка на ръбове за изделия от естесвен камък"
+                description="Открийте различните видове обработка на ръбове за мрамор, гранит и други естествени камъни. Персонализирайте визията и повишете безопасността с Yotto Stones."
+                keywords="обработка на ръбове, мраморен ръб, гранитен ръб, фаска, закръглен ръб, персонализирана обработка на камък"
+                structuredData={{
+                    "@context": "https://schema.org",
+                    "@type": "Service",
+                    "serviceType": "Обработка на ръбове за каменни плотове",
+                    "provider": {
+                        "@type": "Organization",
+                        "name": "Yotto Stones",
+                        "url": "https://www.yottostones-bg.com"
+                    },
+                    "areaServed": {
+                        "@type": "Country",
+                        "name": "България"
+                    },
+                    "description": "Yotto Stones предлага персонализирана обработка на ръбове за мрамор, гранит и други естествени камъни с внимание към детайла и безопасността.",
+                    "hasOfferCatalog": {
+                        "@type": "OfferCatalog",
+                        "name": "Каталог с видове обработка",
+                        "itemListElement": [
+                            {
+                                "@type": "Offer",
+                                "itemOffered": {
+                                    "@type": "Service",
+                                    "name": "Полиран кант с фаска 5мм",
+                                    "description": "Леко скосен и полиран ръб с фаска 5 мм за изискан вид."
+                                }
+                            },
+                            {
+                                "@type": "Offer",
+                                "itemOffered": {
+                                    "@type": "Service",
+                                    "name": "Полиран чело с минимална фаска",
+                                    "description": "Много леко заобляне или фаска, запазваща естествения вид."
+                                }
+                            },
+                            {
+                                "@type": "Offer",
+                                "itemOffered": {
+                                    "@type": "Service",
+                                    "name": "Eдностранно закръгление ¼ R",
+                                    "description": "Меко закръглен ръб за елегантност и практичност."
+                                }
+                            },
+                            {
+                                "@type": "Offer",
+                                "itemOffered": {
+                                    "@type": "Service",
+                                    "name": "Двустранно закръгление ½ R",
+                                    "description": "Гладки, заоблени ръбове от двете страни."
+                                }
+                            },
+                            {
+                                "@type": "Offer",
+                                "itemOffered": {
+                                    "@type": "Service",
+                                    "name": "Едностранно закръгление ¼ R – подленка 20мм+20мм",
+                                    "description": "Едностранно заоблен ръб, който придава мекота на дизайна."
+                                }
+                            },
+                            {
+                                "@type": "Offer",
+                                "itemOffered": {
+                                    "@type": "Service",
+                                    "name": "Полирано чело с минимална фаска – подленка 20мм+20мм",
+                                    "description": "Гладко полиран ръб с леко заобляне."
+                                }
+                            },
+                            {
+                                "@type": "Offer",
+                                "itemOffered": {
+                                    "@type": "Service",
+                                    "name": "Едностранна фаска – подленка 20мм+20мм",
+                                    "description": "Ръб с изрязана фаска, осигуряваща остър и изчистен външен вид..."
+                                }
+                            },
+                            {
+                                "@type": "Offer",
+                                "itemOffered": {
+                                    "@type": "Service",
+                                    "name": "Двустранно закръгление ½ R – подленка 20мм+20мм",
+                                    "description": "Гладки, заоблени ръбове от двете страни..."
+                                }
+                            }
+                        ]
+                    }
+                }}
+            />
             <PageHeader
                 title="Видове обработка"
                 subtitle="Нашите висококачествени решения за вашите нужди"
@@ -89,7 +180,7 @@ export default function EdgeList() {
                                 },
                             ].map((item, i) => (
                                 <li key={i} className="flex items-center gap-3">
-                                    <img
+                                    <Image fill
                                         src={item.icon}
                                         alt={`${item.title} иконка`}
                                         className="w-8 h-8"
