@@ -19,8 +19,8 @@ export const Seo = (props) => {
     structuredData,
   } = useGenerateSeoMetadata(props);
 
-  // ✅ Force meta tag update on route change
   useEffect(() => {
+    // ✅ Canonical URL
     const existingCanonical = document.querySelector("link[rel='canonical']");
     if (existingCanonical) {
       existingCanonical.setAttribute("href", canonical);
@@ -31,14 +31,14 @@ export const Seo = (props) => {
       document.head.appendChild(link);
     }
 
-    // ✅ Update title manually
+    // ✅ Title
     document.title = seoTitle;
 
-    // ✅ Clean up old meta tags to prevent duplicates
+    // ✅ Cleanup
     const metaTags = document.head.querySelectorAll("[data-dynamic-meta]");
     metaTags.forEach((tag) => tag.remove());
 
-    // ✅ Inject dynamic meta tags
+    // ✅ Utility functions
     const createMeta = (name, content) => {
       if (!content) return;
       const meta = document.createElement("meta");
@@ -48,11 +48,6 @@ export const Seo = (props) => {
       document.head.appendChild(meta);
     };
 
-    createMeta("description", seoDescription);
-    createMeta("keywords", seoKeywords);
-    createMeta("robots", "index, follow");
-
-    // ✅ Open Graph meta
     const createPropertyMeta = (property, content) => {
       if (!content) return;
       const meta = document.createElement("meta");
@@ -62,6 +57,12 @@ export const Seo = (props) => {
       document.head.appendChild(meta);
     };
 
+    // ✅ Meta tags
+    createMeta("description", seoDescription);
+    createMeta("keywords", seoKeywords);
+    createMeta("robots", "index, follow");
+
+    // ✅ Open Graph
     createPropertyMeta("og:type", "website");
     createPropertyMeta("og:locale", locale);
     if (altLocale) createPropertyMeta("og:locale:alternate", altLocale);
@@ -71,13 +72,14 @@ export const Seo = (props) => {
     createPropertyMeta("og:url", canonical);
     createPropertyMeta("og:image", seoImage);
 
-    // ✅ Twitter meta
+    // ✅ Twitter
     createMeta("twitter:card", "summary_large_image");
     createMeta("twitter:title", seoTitle);
     createMeta("twitter:description", seoDescription);
     createMeta("twitter:image", seoImage);
+    createPropertyMeta("twitter:image", seoImage); // 🆕 added as property (important)
 
-    // ✅ Inject structured data
+    // ✅ Structured data
     const existingJsonLd = document.querySelector("script[data-structured-data]");
     if (existingJsonLd) existingJsonLd.remove();
 
@@ -88,9 +90,50 @@ export const Seo = (props) => {
       script.text = JSON.stringify(structuredData);
       document.head.appendChild(script);
     }
-  }, [pathname, seoTitle, seoDescription, seoKeywords, seoImage, canonical, locale, altLocale, structuredData]);
 
-  return <Head><title>{seoTitle}</title></Head>; // Initial fallback title
+    // ✅ Favicon injection – 🆕
+    const faviconHref = "/favicon.ico";
+    const existingFavicon = document.querySelector("link[rel='icon']");
+    if (!existingFavicon) {
+      const link = document.createElement("link");
+      link.setAttribute("rel", "icon");
+      link.setAttribute("href", faviconHref);
+      link.setAttribute("data-dynamic-meta", "true");
+      document.head.appendChild(link);
+    }
+
+    // ✅ Apple touch icon – 🆕
+    const appleIcon = document.createElement("link");
+    appleIcon.setAttribute("rel", "apple-touch-icon");
+    appleIcon.setAttribute("href", "/apple-touch-icon.png");
+    appleIcon.setAttribute("data-dynamic-meta", "true");
+    document.head.appendChild(appleIcon);
+
+    // ✅ Preload favicon – 🆕
+    const preload = document.createElement("link");
+    preload.setAttribute("rel", "preload");
+    preload.setAttribute("href", faviconHref);
+    preload.setAttribute("as", "image");
+    preload.setAttribute("data-dynamic-meta", "true");
+    document.head.appendChild(preload);
+
+  }, [
+    pathname,
+    seoTitle,
+    seoDescription,
+    seoKeywords,
+    seoImage,
+    canonical,
+    locale,
+    altLocale,
+    structuredData,
+  ]);
+
+  return (
+    <Head>
+      <title>{seoTitle}</title>
+    </Head>
+  );
 };
 
 export default Seo;
