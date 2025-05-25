@@ -28,14 +28,14 @@ export const metadata = {
   metadataBase: new URL("https://www.yottostones-bg.com"),
   icons: {
     icon: [
-      { url: "/favicon.svg" },
+      { url: "/favicon.ico" },
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
       { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
     ],
     apple: [
       { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
     ],
-    shortcut: "/favicon.svg",
+    shortcut: "/favicon.ico",
   },
   manifest: "/site.webmanifest",
   other: {
@@ -63,11 +63,11 @@ export default function RootLayout({
         <meta name="theme-color" content="#D4AF37" />
 
         {/* Favicons */}
-        <link rel="icon" href="/assets/images/logo.svg" />
+        <link rel="icon" href="/favicon.ico" />
         <link
           rel="apple-touch-icon"
           sizes="180x180"
-          href="/assets/images/logo.svg"
+          href="/apple-touch-icon.png"
         />
         <link rel="manifest" href="/site.webmanifest" />
 
