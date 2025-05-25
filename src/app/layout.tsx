@@ -10,7 +10,6 @@ import ReduxProvider from "@/providers/ReduxProvider";
 import PersistProvider from "@/providers/PersistProvider";
 import CookieSettingsProvider from "@/providers/CookieSettingsProvider";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import Seo from "@/components/common/Seo";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,7 +23,8 @@ const geistMono = Geist_Mono({
 
 export const metadata = {
   title: "Yotto Stones - Мрамор и Гранит за вашия дом и бизнес",
-  description: "Открийте висококачествени естествени камъни за интериорни и екстериорни проекти.",
+  description:
+    "Открийте висококачествени естествени камъни за интериорни и екстериорни проекти.",
   metadataBase: new URL("https://www.yottostones-bg.com"),
   icons: {
     icon: [
@@ -41,6 +41,29 @@ export const metadata = {
   other: {
     "mask-icon": "/safari-pinned-tab.svg",
     "theme-color": "#D4AF37",
+  },
+  openGraph: {
+    type: "website",
+    url: "https://www.yottostones-bg.com",
+    title: "Yotto Stones - Мрамор и Гранит за вашия дом и бизнес",
+    description:
+      "Открийте висококачествени естествени камъни за интериорни и екстериорни проекти.",
+    siteName: "Yotto Stones",
+    images: [
+      {
+        url: "https://firebasestorage.googleapis.com/v0/b/yotto-stones.firebasestorage.app/o/images%2Fbase%2Fstairs.webp?alt=media&token=1680693e-1b76-45e5-9653-4711e086903b", // Make sure this exists
+        width: 1200,
+        height: 630,
+        alt: "Yotto Stones Logo",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Yotto Stones - Мрамор и Гранит",
+    description:
+      "Открийте най-добрите каменни решения за вашия дом или бизнес.",
+    images: ["https://firebasestorage.googleapis.com/v0/b/yotto-stones.firebasestorage.app/o/images%2Fbase%2Fstairs.webp?alt=media&token=1680693e-1b76-45e5-9653-4711e086903b"],
   },
 };
 
@@ -60,29 +83,17 @@ export default function RootLayout({
           name="viewport"
           content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
         />
-        <meta name="theme-color" content="#D4AF37" />
-
-        {/* Favicons */}
-        <link rel="icon" href="/favicon.ico" />
-        <link
-          rel="apple-touch-icon"
-          sizes="180x180"
-          href="/apple-touch-icon.png"
-        />
-        <link rel="manifest" href="/site.webmanifest" />
-
-        {/* Optional: Manifest + App Meta */}
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta
           name="apple-mobile-web-app-status-bar-style"
           content="black-translucent"
         />
+        {/* ✅ Removed duplicate favicon and theme-color meta tags */}
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         style={{ height: "var(--app-height)" }}
       >
-        {/* <Seo /> */}
         <ReduxProvider>
           <PersistProvider>
             <CookieSettingsProvider>
