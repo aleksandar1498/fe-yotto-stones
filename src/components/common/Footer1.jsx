@@ -41,13 +41,13 @@ export default function Footer1() {
       <div className="container">
         <div className="grid grid-cols-1 gap-x-[8vw] gap-y-12 pb-12 md:gap-y-16 md:pb-18 lg:grid-cols-[0.75fr_1fr] lg:gap-y-4 lg:pb-20">
           <div className="flex flex-col text-center">
-            <a href="#" className="mb-5 md:mb-6">
+            <Link href="/" className="mb-5 md:mb-6">
               <img
-                src="/assets/images/logo-2.svg"
+                src="/assets/images/logo-official-v2.svg"
                 alt="Logo image"
-                className="inline-block max-w-[250px] sm:max-w-[350px]"
+                className="inline-block max-w-[250px] sm:max-w-[200px]"
               />
-            </a>
+            </Link>
             <p className="mb-5 md:mb-6">
               Присъединете се към нашия бюлетин за новини и актуализации.
             </p>
@@ -86,9 +86,6 @@ export default function Footer1() {
                       <span> {material.name}</span>
                     </Link>
                   </li>
-                  // <Link key={index} href={`/materials/${material.id}`} className="block text-center py-2 hover:text-gray-700">
-                  //   {material.name}
-                  // </Link>
                 ))}
               </ul>
 
@@ -122,41 +119,6 @@ export default function Footer1() {
                 </li>
               </ul>
             </div>
-            {/* <div className="flex flex-col items-start justify-start"> */}
-            {/* <h2 className="mb-3 font-semibold md:mb-4">Следвайте ни</h2>
-              <ul className="flex flex-col items-start">
-                <li className="py-2 text-sm">
-                  <a href="#" className="flex items-center gap-3">
-                    <BiLogoFacebookCircle className="size-6" />
-                    <span>Facebook</span>
-                  </a>
-                </li>
-                <li className="py-2 text-sm">
-                  <a href="#" className="flex items-center gap-3">
-                    <BiLogoInstagram className="size-6" />
-                    <span>Instagram</span>
-                  </a>
-                </li>
-                <li className="py-2 text-sm">
-                  <a href="#" className="flex items-center gap-3">
-                    <FaXTwitter className="size-6 p-0.5" />
-                    <span>X</span>
-                  </a>
-                </li>
-                <li className="py-2 text-sm">
-                  <a href="#" className="flex items-center gap-3">
-                    <BiLogoLinkedinSquare className="size-6" />
-                    <span>LinkedIn</span>
-                  </a>
-                </li>
-                <li className="py-2 text-sm">
-                  <a href="#" className="flex items-center gap-3">
-                    <BiLogoYoutube className="size-6" />
-                    <span>Youtube</span>
-                  </a>
-                </li>
-              </ul> */}
-            {/* </div> */}
           </div>
         </div>
         <div className="h-px w-full bg-black" />

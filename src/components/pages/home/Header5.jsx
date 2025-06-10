@@ -51,14 +51,14 @@ export default function Header5() {
         <p className="mt-4 md:mt-6 text-lg md:text-xl opacity-90 font-extralight">
           Открийте уникалната красота на природния камък. Нашите луксозни решения ще преобразят вашето пространство.
         </p>
-        <div className="mt-6 md:mt-8 flex justify-center gap-4">
+        <div className="mt-6 md:mt-8 flex justify-center gap-4  flex-wrap">
           <ScrollLink href="/" sectionTag="about-section">
-            <button className="px-6 py-3 text-lg font-semibold rounded-lg text-white hover:bg-white/20 shadow-lg">
+            <button className="px-6 py-3 text-sm sm:text-lg font-semibold rounded-lg text-white hover:bg-white/20 shadow-lg">
               Научи повече
             </button>
           </ScrollLink>
           <Link href="/contact">
-            <button className="px-6 py-3 text-lg font-semibold bg-royalGold/30 hover:bg-royalGold/60 text-white rounded-lg backdrop-blur-lg">
+            <button className="px-6 py-3 text-sm sm:text-lg font-semibold bg-royalGold/30 hover:bg-royalGold/60 text-white rounded-lg backdrop-blur-lg">
               Свържи се
             </button>
           </Link>
