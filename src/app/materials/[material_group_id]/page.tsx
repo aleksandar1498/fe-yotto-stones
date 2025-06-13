@@ -15,7 +15,7 @@ const BabylonScene = dynamic(() => import('@/components/animated/BabylonScene'),
 });
 
 const MaterialList = () => {
-  const { slug } = useParams();
+  const { material_group_id } = useParams();
   const materialGroups = useSelector(
     (state: any) => state.materials?.materials
   );
@@ -30,9 +30,9 @@ const MaterialList = () => {
 
   // Load materials from storage or API
   useEffect(() => {
-    if (!slug || !materialGroups || materialGroups.length === 0) return;
+    if (!material_group_id || !materialGroups || materialGroups.length === 0) return;
 
-    const categoryId = Number(slug);
+    const categoryId = Number(material_group_id);
     const currentCategory = materialGroups.find(
       (group: any) => group.id === categoryId
     );
@@ -48,20 +48,20 @@ const MaterialList = () => {
         "storedMaterials",
         JSON.stringify(currentCategory.materials)
       );
-      localStorage.setItem("lastSlug", slug.toString());
+      localStorage.setItem("lastmaterial_group_id", material_group_id.toString());
     } else {
       setMaterials([]);
       setVisibleMaterials([]);
       setLoading(false);
     }
-  }, [slug, materialGroups]);
+  }, [material_group_id, materialGroups]);
 
   // Restore materials from localStorage if available
   useEffect(() => {
     const storedMaterials = localStorage.getItem("storedMaterials");
-    const lastSlug = localStorage.getItem("lastSlug");
+    const lastmaterial_group_id = localStorage.getItem("lastmaterial_group_id");
 
-    if (storedMaterials && lastSlug === slug) {
+    if (storedMaterials && lastmaterial_group_id === material_group_id) {
       const parsedMaterials = JSON.parse(storedMaterials);
       setMaterials(parsedMaterials);
       setVisibleMaterials(parsedMaterials.slice(0, ITEMS_PER_LOAD));
@@ -115,7 +115,7 @@ const MaterialList = () => {
       <PageHeader
         title={currentCategory && currentCategory['name']}
         subtitle={currentCategory && currentCategory['title']}
-        backgroundImage={ `/assets/images/materials/${slug}/${materials[Math.floor(Math.random()*materials.length)]?.imageName}`}
+        backgroundImage={ `/assets/images/materials/${material_group_id}/${materials[Math.floor(Math.random()*materials.length)]?.imageName}`}
       />
       <div className="container mx-auto p-6">  
         <motion.div
@@ -129,7 +129,7 @@ const MaterialList = () => {
               key={material.id}
               onClick={() =>
                 openModal(
-                  `/assets/images/materials/${slug}/${material.imageName}`
+                  `/assets/images/materials/${material_group_id}/${material.imageName}`
                 )
               }
               whileHover={{ scale: 1.05 }}
@@ -137,7 +137,7 @@ const MaterialList = () => {
               className="bg-white shadow-lg rounded-lg overflow-hidden cursor-pointer transition-all duration-300 flip-card-container"
             >
               <img
-                src={`/assets/images/materials/${slug}/${material.imageName}`}
+                src={`/assets/images/materials/${material_group_id}/${material.imageName}`}
                 alt={material.name}
                 className="w-full h-48 object-cover flip-card"
               />

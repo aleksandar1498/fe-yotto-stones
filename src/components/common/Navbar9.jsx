@@ -36,7 +36,7 @@ export default function Navbar() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
-          className="absolute top-[8rem] left-0 w-full bg-white shadow-lg py-6 z-40 hidden lg:block"
+          className="fixed top-[8rem] left-0 w-full bg-white shadow-lg py-6 z-40 hidden lg:block"
         >
           <div className="container mx-auto grid grid-cols-2 lg:grid-cols-4 gap-4 px-6">
             {materials?.map((material, idx) => (
@@ -61,7 +61,7 @@ export default function Navbar() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
-          className="absolute top-[8rem] left-0 w-full bg-white shadow-lg py-6 z-40 hidden lg:block"
+          className="fixed top-[8rem] left-0 w-full bg-white shadow-lg py-6 z-40 hidden lg:block"
         >
           <div className="container mx-auto flex flex-row gap-8 px-6 justify-center text-center">
 
@@ -99,7 +99,7 @@ export default function Navbar() {
         <div className="container mx-auto flex flex-col items-center">
 
           <div className="flex w-full px-6 justify-start md:justify-center">
-            <button className="absolute top-14 md:top-[4.2rem] lg:top-20 left-2 hover:text-darkGoldHover text-black/60 px-4 my-2 leading-10 rounded-2xl flex items-center space-x-2">
+            <button className="absolute top-14 top-[4.3rem] md:top-[4.6rem] lg:top-20 left-2 hover:text-darkGoldHover text-black/60 px-4 my-2 leading-10 rounded-2xl flex items-center space-x-2">
               <a href="tel:+359895198805" className="flex items-center space-x-2">
                 <FaPhoneVolume className="text-xl" />
                 <span>0895198805</span>
@@ -150,7 +150,7 @@ m-1987 -789 l226 -288 -16 -417 c-10 -229 -18 -418 -19 -418 -8 -6 -1053 -121
               </Link>
             </div>
             {/* CTA Button */}
-            <button className="absolute top-2 right-2 bg-royalGold hover:bg-royalGold/50 text-white px-4 my-2 leading-10 rounded-2xl hidden lg:block justify-end">
+            <button className="absolute top-2 right-4 bg-royalGold hover:bg-royalGold/50 text-white px-4 my-2 leading-10 rounded-2xl hidden lg:block justify-end">
               <Link href="/contact">Поискай оферта</Link>
             </button>
           </div>

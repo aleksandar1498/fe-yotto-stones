@@ -15,6 +15,7 @@ import IntroSection from "@/components/pages/home/IntroSection";
 import AboutUs from "@/components/pages/home/AboutUs";
 import CTASection from "@/components/pages/home/Cta57";
 import Materials from "@/components/common/Materials";
+import MostValuedProducts from "@/components/common/MostValuedProducts";
 import Contact14 from "@/components/common/Contact14";
 import WorkSteps from "@/components/pages/home/WorkSteps";
 
@@ -69,6 +70,7 @@ export default function Home() {
       <IntroSection />
       <AboutUs />
       <CompanyOfferings />
+      <MostValuedProducts />
       <WorkSteps />
       <CTASection />
       <Materials />

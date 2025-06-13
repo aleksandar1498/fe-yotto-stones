@@ -1,6 +1,7 @@
 "use client";
 
 import Materials from "@/components/common/Materials";
+import MostValuedProducts from "@/components/common/MostValuedProducts";
 import PageHeader from "@/components/common/PageHeader";
 import Seo from "@/components/common/Seo";
 import { motion } from "framer-motion";
@@ -139,6 +140,8 @@ export default function MaterialsClient() {
           </motion.div>
         </div>
       </section>
+
+      <MostValuedProducts />
       <Materials includeTitle={false} />
     </div>
   );
