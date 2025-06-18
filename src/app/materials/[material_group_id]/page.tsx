@@ -7,14 +7,19 @@ import { useSelector } from "react-redux";
 
 import PageHeader from "@/components/common/PageHeader";
 import dynamic from "next/dynamic";
+import { useMaterialsLoader } from "@/hooks/useMaterialsLoader";
 
 const ITEMS_PER_LOAD = 6; // Number of items to load each time
 
-const BabylonScene = dynamic(() => import('@/components/animated/BabylonScene'), {
-  ssr: false, // Required to prevent issues with WebGL
-});
+const BabylonScene = dynamic(
+  () => import("@/components/animated/BabylonScene"),
+  {
+    ssr: false, // Required to prevent issues with WebGL
+  }
+);
 
 const MaterialList = () => {
+  useMaterialsLoader();
   const { material_group_id } = useParams();
   const materialGroups = useSelector(
     (state: any) => state.materials?.materials
@@ -30,7 +35,8 @@ const MaterialList = () => {
 
   // Load materials from storage or API
   useEffect(() => {
-    if (!material_group_id || !materialGroups || materialGroups.length === 0) return;
+    if (!material_group_id || !materialGroups || materialGroups.length === 0)
+      return;
 
     const categoryId = Number(material_group_id);
     const currentCategory = materialGroups.find(
@@ -48,7 +54,10 @@ const MaterialList = () => {
         "storedMaterials",
         JSON.stringify(currentCategory.materials)
       );
-      localStorage.setItem("lastmaterial_group_id", material_group_id.toString());
+      localStorage.setItem(
+        "lastmaterial_group_id",
+        material_group_id.toString()
+      );
     } else {
       setMaterials([]);
       setVisibleMaterials([]);
@@ -113,41 +122,42 @@ const MaterialList = () => {
   return (
     <>
       <PageHeader
-        title={currentCategory && currentCategory['name']}
-        subtitle={currentCategory && currentCategory['title']}
-        backgroundImage={ `/assets/images/materials/${material_group_id}/${materials[Math.floor(Math.random()*materials.length)]?.imageName}`}
+        title={currentCategory && currentCategory["name"]}
+        subtitle={currentCategory && currentCategory["title"]}
+        backgroundImage={`/assets/images/materials/${material_group_id}/${materials[Math.floor(Math.random() * materials.length)]?.imageName}`}
       />
-      <div className="container mx-auto p-6">  
+      <div className="container mx-auto p-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
           className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6"
         >
-          {visibleMaterials && visibleMaterials.map((material: any) => (
-            <motion.div
-              key={material.id}
-              onClick={() =>
-                openModal(
-                  `/assets/images/materials/${material_group_id}/${material.imageName}`
-                )
-              }
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              className="bg-white shadow-lg rounded-lg overflow-hidden cursor-pointer transition-all duration-300 flip-card-container"
-            >
-              <img
-                src={`/assets/images/materials/${material_group_id}/${material.imageName}`}
-                alt={material.name}
-                className="w-full h-48 object-cover flip-card"
-              />
-              <div className="p-4">
-                <h4 className="text-lg font-semibold">
-                  {material.name.replace(/-/g, " ").toUpperCase()}
-                </h4>
-              </div>
-            </motion.div>
-          ))}
+          {visibleMaterials &&
+            visibleMaterials.map((material: any) => (
+              <motion.div
+                key={material.id}
+                onClick={() =>
+                  openModal(
+                    `/assets/images/materials/${material_group_id}/${material.imageName}`
+                  )
+                }
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-white shadow-lg rounded-lg overflow-hidden cursor-pointer transition-all duration-300 flip-card-container"
+              >
+                <img
+                  src={`/assets/images/materials/${material_group_id}/${material.imageName}`}
+                  alt={material.name}
+                  className="w-full h-48 object-cover flip-card"
+                />
+                <div className="p-4">
+                  <h4 className="text-lg font-semibold">
+                    {material.name.replace(/-/g, " ").toUpperCase()}
+                  </h4>
+                </div>
+              </motion.div>
+            ))}
         </motion.div>
 
         {/* Load More Button */}

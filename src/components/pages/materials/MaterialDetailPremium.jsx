@@ -46,11 +46,13 @@ export default function MaterialDetailPremium({ material, groupId }) {
                             <span className="text-white font-medium">Размери:</span> {material.sizes}
                         </p>
                         <p className="text-sm text-gray-400">
-                            <span className="text-white font-medium">Цена:</span> {material.price
+                            <span className="text-white font-medium">Цена:</span>
+                            При запитване
+                            {/* {material.price
                                 ? `от ${(
                                     material.price * (0.3 * 0.6) + (0.3 * 0.6 * 25)
                                 ).toFixed(2)} лв с ДДС`
-                                : "При запитване"}
+                                : "При запитване"} */}
                         </p>
                     </div>
 

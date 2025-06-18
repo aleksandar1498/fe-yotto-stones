@@ -18,25 +18,12 @@ import Materials from "@/components/common/Materials";
 import MostValuedProducts from "@/components/common/MostValuedProducts";
 import Contact14 from "@/components/common/Contact14";
 import WorkSteps from "@/components/pages/home/WorkSteps";
-
+import { useMaterialsLoader } from '@/hooks/useMaterialsLoader';
 export default function Home() {
-  const dispatch = useDispatch();
+  
   const pathname = usePathname();
 
-  useEffect(() => {
-    const materialsRef = ref(db, "group_materials");
-
-    const unsubscribe: Unsubscribe = onValue(materialsRef, (snapshot) => {
-      const data = snapshot.val();
-      if (!data) return;
-
-      const materialsArray = data;
-
-      dispatch(setMaterials(materialsArray));
-    });
-
-    return () => unsubscribe(); // Cleanup
-  }, [dispatch]);
+  useMaterialsLoader();
 
   useEffect(() => {
     const scrollToTarget = () => {

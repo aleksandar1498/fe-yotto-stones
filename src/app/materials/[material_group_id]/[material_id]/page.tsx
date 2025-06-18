@@ -5,8 +5,11 @@ import { useSelector } from "react-redux";
 import { useEffect, useState } from "react";
 import MaterialDetailPremium from "@/components/pages/materials/MaterialDetailPremium";
 import PageHeader from "@/components/common/PageHeader";
+import { useMaterialsLoader } from "@/hooks/useMaterialsLoader";
 
 const MaterialDetailPage = () => {
+
+  useMaterialsLoader();
   const { material_group_id, material_id } = useParams();
   const allGroups = useSelector((state: any) => state.materials?.materials);
   const [material, setMaterial] = useState<any>(null);
@@ -22,7 +25,7 @@ const MaterialDetailPage = () => {
     if (!group) return;
 
     setCurrentCategory(group);
-    
+
     const match = group.materials.find(
       (m: any) => m.id.toString() === material_id
     );

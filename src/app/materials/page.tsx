@@ -4,6 +4,7 @@ import Materials from "@/components/common/Materials";
 import MostValuedProducts from "@/components/common/MostValuedProducts";
 import PageHeader from "@/components/common/PageHeader";
 import Seo from "@/components/common/Seo";
+import { useMaterialsLoader } from "@/hooks/useMaterialsLoader";
 import { motion } from "framer-motion";
 import {
   GiStoneCrafting,
@@ -12,6 +13,9 @@ import {
 } from "react-icons/gi";
 
 export default function MaterialsClient() {
+
+  useMaterialsLoader();
+  
   return (
     <div>
       <Seo
