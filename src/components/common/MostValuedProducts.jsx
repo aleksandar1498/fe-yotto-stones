@@ -110,7 +110,7 @@ export default function MostValuedProducts() {
       <div className="max-w-7xl mx-auto overflow-hidden relative">
         <button
           onClick={() => emblaApi?.scrollPrev()}
-          className="absolute top-1/2 -translate-y-1/2 left-2 z-50 w-10 h-10 rounded-full border border-[#9F7E46] flex items-center justify-center hover:bg-[#9F7E46]/20 transition backdrop-blur-md"
+          className="absolute top-1/2 -translate-y-1/2 left-2 z-30 w-10 h-10 rounded-full border border-[#9F7E46] flex items-center justify-center hover:bg-[#9F7E46]/20 transition backdrop-blur-md"
         >
           <svg className="w-4 h-4 text-[white]" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -118,7 +118,7 @@ export default function MostValuedProducts() {
         </button>
         <button
           onClick={() => emblaApi?.scrollNext()}
-          className="absolute top-1/2 -translate-y-1/2 right-2 z-50 w-10 h-10 rounded-full border border-[#9F7E46] flex items-center justify-center hover:bg-[#9F7E46]/20 transition backdrop-blur-sm"
+          className="absolute top-1/2 -translate-y-1/2 right-2 z-30 w-10 h-10 rounded-full border border-[#9F7E46] flex items-center justify-center hover:bg-[#9F7E46]/20 transition backdrop-blur-sm"
         >
           <svg className="w-4 h-4 text-[white]" fill="none" stroke="currentColor" strokeWidth="4" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
