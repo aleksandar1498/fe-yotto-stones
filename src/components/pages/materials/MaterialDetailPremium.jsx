@@ -5,7 +5,7 @@ import Link from "next/link";
 
 export default function MaterialDetailPremium({ material, groupId }) {
     return (
-        <section className="bg-[#0A0A0A] text-platinum min-h-screenpx-6 md:px-16">
+        <section className="bg-[#0A0A0A] text-platinum min-h-screenpx-6 md:px-16 px-8 py-12">
             <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-12 items-center">
                 {/* Image Block */}
                 <motion.div
