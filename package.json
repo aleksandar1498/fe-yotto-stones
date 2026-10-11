@@ -28,7 +28,7 @@
     "framer-motion": "^12.4.7",
     "fs": "^0.0.1-security",
     "lucide-react": "^0.475.0",
-    "next": "15.1.7",
+    "next": "15.1.11",
     "next-sitemap": "^4.2.3",
     "openai": "^4.92.1",
     "puppeteer": "^24.6.0",
