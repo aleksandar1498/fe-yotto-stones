@@ -2,10 +2,12 @@
 import Image from "next/image";
 import { motion } from "framer-motion";
 import Link from "next/link";
+import { materialImageSrc, materialDisplayName } from "@/lib/materialImage";
+import PriceCalculator from "./PriceCalculator";
 
 export default function MaterialDetailPremium({ material, groupId }) {
     return (
-        <section className="bg-[#0A0A0A] text-platinum min-h-screenpx-6 md:px-16 px-8 py-12">
+        <section className="bg-[#0A0A0A] text-platinum min-h-screen md:px-16 px-8 py-12">
             <div className="max-w-7xl mx-auto grid md:grid-cols-2 gap-12 items-center">
                 {/* Image Block */}
                 <motion.div
@@ -15,8 +17,8 @@ export default function MaterialDetailPremium({ material, groupId }) {
                     className="relative w-full h-[500px] md:h-[600px] rounded-xl overflow-hidden "
                 >
                     <Image
-                        src={`/assets/images/materials/${groupId}/${material.imageName}`}
-                        alt={material.name}
+                        src={materialImageSrc(material, groupId)}
+                        alt={materialDisplayName(material)}
                         fill
                         className="object-cover w-full h-full py-20 rounded-xl"
                         sizes="(max-width: 768px) 100vw, 50vw"
@@ -34,26 +36,26 @@ export default function MaterialDetailPremium({ material, groupId }) {
                         Премиум естествен камък
                     </p>
                     <h1 className="text-4xl md:text-5xl font-semibold text-white">
-                        {material.name.replace(/-/g, " ").toUpperCase()}
+                        {materialDisplayName(material)}
                     </h1>
 
                     <p className="text-gray-300 text-base leading-relaxed">
                         {material.description}
                     </p>
 
-                    <div className="pt-6 border-t border-gray-700">
-                        <p className="text-sm text-gray-400 mb-1">
-                            <span className="text-white font-medium">Размери:</span> {material.sizes}
-                        </p>
-                        <p className="text-sm text-gray-400">
-                            <span className="text-white font-medium">Цена:</span>
-                            При запитване
-                            {/* {material.price
-                                ? `от ${(
-                                    material.price * (0.3 * 0.6) + (0.3 * 0.6 * 25)
-                                ).toFixed(2)} лв с ДДС`
-                                : "При запитване"} */}
-                        </p>
+                    <div className="pt-6 border-t border-gray-700 space-y-1">
+                        {[
+                            ["Материал", material.material],
+                            ["Произход", material.origin],
+                            ["Повърхност", material.surface],
+                            ["Размери", material.sizes],
+                        ]
+                            .filter(([, value]) => value)
+                            .map(([label, value]) => (
+                                <p key={label} className="text-sm text-gray-400">
+                                    <span className="text-white font-medium">{label}:</span> {value}
+                                </p>
+                            ))}
                     </div>
 
                     <motion.button
@@ -63,6 +65,15 @@ export default function MaterialDetailPremium({ material, groupId }) {
                         <Link href="/contact"> Запитване за този материал</Link>
                     </motion.button>
                 </motion.div>
+            </div>
+
+            {/* Full-width row under image + details. Renders nothing unless the admin enabled the calculator. */}
+            <div className="max-w-7xl mx-auto mt-12 empty:hidden">
+                <PriceCalculator
+                    groupId={Number(groupId)}
+                    materialId={Number(material.id)}
+                    materialName={materialDisplayName(material)}
+                />
             </div>
         </section>
     );

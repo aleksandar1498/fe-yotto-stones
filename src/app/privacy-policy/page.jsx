@@ -1,6 +1,8 @@
-"use client";
-
-import React from "react";
+export const metadata = {
+  title: "Политика за поверителност",
+  description: "Как Yotto Stones събира, използва и защитава личните ви данни и бисквитките на сайта.",
+  alternates: { canonical: "/privacy-policy" },
+};
 
 export default function PrivacyPolicy() {
   return (

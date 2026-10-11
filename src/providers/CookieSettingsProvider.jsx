@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 const CookieContext = createContext();
 
@@ -15,6 +16,7 @@ const defaultConsent = {
 export default function CookieSettingsProvider({ children }) {
   const [consent, setConsent] = useState(defaultConsent);
   const [modalOpen, setModalOpen] = useState(false);
+  const isAdmin = usePathname()?.startsWith("/admin");
 
   useEffect(() => {
     const saved = localStorage.getItem("cookieConsent");
@@ -46,7 +48,7 @@ export default function CookieSettingsProvider({ children }) {
     <CookieContext.Provider value={{ consent, setModalOpen }}>
       {children}
 
-      {modalOpen && (
+      {modalOpen && !isAdmin && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6">
             <h2 className="text-xl font-bold mb-4">Настройки на бисквитките</h2>

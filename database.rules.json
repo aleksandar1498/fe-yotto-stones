@@ -1,0 +1,21 @@
+{
+  "rules": {
+    ".read": "auth != null && auth.uid === 'o9ao16RZJlh1lEGJe9wel5FSSwk2'",
+    ".write": "auth != null && auth.uid === 'o9ao16RZJlh1lEGJe9wel5FSSwk2'",
+    "group_materials": {
+      ".read": true
+    },
+    "trending_materials": {
+      ".read": true
+    },
+    "orders_active": {
+      ".indexOn": ["updatedAt"]
+    },
+    "orders_history": {
+      ".indexOn": ["closedAt"]
+    },
+    "order_requests": {
+      ".indexOn": ["createdAt", "status"]
+    }
+  }
+}

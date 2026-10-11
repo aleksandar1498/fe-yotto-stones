@@ -16,10 +16,18 @@ const nextConfig = {
         pathname: '/v0/b/yotto-stones.firebasestorage.app/o/**',
       },
     ],
-    formats: ['image/webp'],
-    minimumCacheTTL: 60,
+    formats: ['image/avif', 'image/webp'],
+    minimumCacheTTL: 2592000,
   },
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production' ? { exclude: ['error', 'warn'] } : false,
+  },
+  poweredByHeader: false,
   headers: async () => [
+    {
+      source: '/assets/:path*',
+      headers: [{ key: 'Cache-Control', value: 'public, max-age=604800, stale-while-revalidate=86400' }],
+    },
     {
       source: '/(.*)',
       headers: [

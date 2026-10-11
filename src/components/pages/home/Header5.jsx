@@ -35,8 +35,11 @@ export default function Header5() {
           <div key={index} className="image-slide">
             <img
               src={image}
-              alt={`Slide ${index + 1}`}
-              className="h-100" // lazy-load images for performance
+              alt={`Yotto Stones – мрамор и гранит, слайд ${index + 1}`}
+              className="h-100"
+              loading={index === 0 ? "eager" : "lazy"}
+              fetchPriority={index === 0 ? "high" : "low"}
+              decoding="async"
             />
             <div className="absolute inset-0 bg-black/40 backdrop-blur-[0px]" />
           </div>

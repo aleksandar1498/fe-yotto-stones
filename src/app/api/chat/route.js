@@ -1,14 +1,22 @@
-import { supabase } from "@/lib/ai/chatbot/supabase";
-import { getEmbedding, createCompletion } from "@/lib/ai/chatbot/openai";
-import { searchSupabase } from "@/lib/ai/chatbot/supabase";
-import {
-  getRelevantGlobalFacts,
-  embedGlobalFactsCache,
-  getMaxSimilarityScore,
-  getAverageSimilarity,
-} from "@/lib/ai/chatbot/utils";
+// Chatbot is disabled by default; set CHATBOT_ENABLED=1 to bring it back.
+const chatbotEnabled = () => process.env.CHATBOT_ENABLED === "1";
 
 export async function POST(req) {
+  if (!chatbotEnabled()) {
+    return new Response(JSON.stringify({ error: "Chatbot disabled" }), {
+      status: 404,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  // Imported lazily so the disabled route never initialises Supabase/OpenAI clients.
+  const { supabase, searchSupabase } = await import("@/lib/ai/chatbot/supabase");
+  const { getEmbedding, createCompletion } = await import("@/lib/ai/chatbot/openai");
+  const {
+    getRelevantGlobalFacts,
+    embedGlobalFactsCache,
+    getMaxSimilarityScore,
+    getAverageSimilarity,
+  } = await import("@/lib/ai/chatbot/utils");
   try {
     const { message, language } = await req.json();
 

@@ -1,0 +1,27 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function isAdmin() {
+      return request.auth != null && request.auth.uid == 'o9ao16RZJlh1lEGJe9wel5FSSwk2';
+    }
+
+    // Catalogue images: public read, admin-only upload (images, max 5 MB).
+    match /images/{allPaths=**} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.contentType.matches('image/.*')
+        && request.resource.size < 5 * 1024 * 1024;
+      allow delete: if isAdmin();
+    }
+
+    // Order evidence: admin-only (images or PDF, max 15 MB).
+    match /orders/{orderId}/{fileName} {
+      allow read, delete: if isAdmin();
+      allow create, update: if isAdmin()
+        && (request.resource.contentType.matches('image/.*')
+            || request.resource.contentType == 'application/pdf')
+        && request.resource.size < 15 * 1024 * 1024;
+    }
+  }
+}

@@ -1,216 +1,83 @@
-"use client";
+import type { Metadata } from "next";
+import JsonLd from "@/components/seo/JsonLd";
+import MaterialGroupClient from "@/components/pages/materials/MaterialGroupClient";
+import {
+  SITE_URL,
+  breadcrumbJsonLd,
+  fetchMaterialGroups,
+  findGroup,
+  materialImage,
+  materialName,
+  truncate,
+} from "@/lib/seo/site";
 
-import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
-import { useSelector } from "react-redux";
-import dynamic from "next/dynamic";
+type Params = Promise<{ material_group_id: string }>;
 
-import PageHeader from "@/components/common/PageHeader";
-import { useMaterialsLoader } from "@/hooks/useMaterialsLoader";
+export const revalidate = 3600;
 
-const ITEMS_PER_LOAD = 6;
+export async function generateStaticParams() {
+  const groups = await fetchMaterialGroups();
+  return groups.map((g) => ({ material_group_id: String(g.id) }));
+}
 
-const BabylonScene = dynamic(() => import("@/components/animated/BabylonScene"), {
-  ssr: false,
-});
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const { material_group_id } = await params;
+  const group = await findGroup(material_group_id);
+  if (!group) return { title: "Материали", robots: { index: false } };
 
-const MaterialList = () => {
-  useMaterialsLoader();
-  const { material_group_id } = useParams();
-  const materialGroups = useSelector((state: any) => state.materials?.materials);
+  const title = `${group.name}${group.title ? ` – ${group.title}` : ""}`;
+  const description =
+    truncate(group.description, 160) ||
+    `${group.name} от Yotto Stones – плотове, стъпала, первази и облицовки по размер.`;
+  const cover = group.materials[0] ? materialImage(group.materials[0], group.id) : undefined;
+  const url = `${SITE_URL}/materials/${group.id}`;
 
-  const [materials, setMaterials] = useState<any[]>([]);
-  const [trendingMaterials, setTrendingMaterials] = useState<any[]>([]);
-  const [visibleMaterials, setVisibleMaterials] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadedItems, setLoadedItems] = useState(ITEMS_PER_LOAD);
-  const [currentCategory, setCurrentCategory] = useState(null);
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-
-  const [viewMode, setViewMode] = useState<"all" | "trending">("all"); // NEW
-
-  useEffect(() => {
-    if (!material_group_id || !materialGroups || materialGroups.length === 0) return;
-
-    const categoryId = Number(material_group_id);
-    const currentCategory = materialGroups.find((group: any) => group.id === categoryId);
-
-    if (currentCategory) {
-      const trending = currentCategory.materials?.filter((m: any) => m.trending === true) || [];
-      const others = currentCategory.materials?.filter((m: any) => m.trending !== true) || [];
-
-      setTrendingMaterials(trending);
-      setMaterials(others);
-      setVisibleMaterials(others.slice(0, ITEMS_PER_LOAD));
-      setLoadedItems(ITEMS_PER_LOAD);
-      setLoading(false);
-      setCurrentCategory(currentCategory);
-
-      localStorage.setItem("storedMaterials", JSON.stringify(currentCategory.materials));
-      localStorage.setItem("lastmaterial_group_id", material_group_id.toString());
-    } else {
-      setMaterials([]);
-      setVisibleMaterials([]);
-      setLoading(false);
-    }
-  }, [material_group_id, materialGroups]);
-
-  useEffect(() => {
-    const stored = localStorage.getItem("storedMaterials");
-    const lastId = localStorage.getItem("lastmaterial_group_id");
-
-    if (stored && lastId === material_group_id) {
-      const parsed = JSON.parse(stored);
-      const trending = parsed.filter((m: any) => m.trending === true);
-      const others = parsed.filter((m: any) => m.trending !== true);
-      setTrendingMaterials(trending);
-      setMaterials(others);
-      setVisibleMaterials(others.slice(0, ITEMS_PER_LOAD));
-      setLoadedItems(ITEMS_PER_LOAD);
-      setLoading(false);
-    }
-  }, []);
-
-  const loadMoreMaterials = () => {
-    const newVisible = materials.slice(0, loadedItems + ITEMS_PER_LOAD);
-    setVisibleMaterials(newVisible);
-    setLoadedItems(newVisible.length);
+  return {
+    title,
+    description,
+    alternates: { canonical: `/materials/${group.id}` },
+    openGraph: { url, title: `${title} | Yotto Stones`, description, images: cover ? [{ url: cover }] : undefined },
+    twitter: { title: `${title} | Yotto Stones`, description, images: cover ? [cover] : undefined },
   };
+}
 
-  const openModal = (imageUrl: string) => setSelectedImage(imageUrl);
-  const closeModal = () => setSelectedImage(null);
+export default async function MaterialGroupPage({ params }: { params: Params }) {
+  const { material_group_id } = await params;
+  const groups = await fetchMaterialGroups();
+  const group = groups.find((g) => String(g.id) === material_group_id);
+  // No notFound(): the catalogue is cached for an hour; the client loads live data.
 
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") closeModal();
-    };
-    document.addEventListener("keydown", handler);
-    return () => document.removeEventListener("keydown", handler);
-  }, []);
-
-  const renderMaterials = (items: any[]) =>
-    items.map((material: any) => (
-      <motion.div
-        key={material.id}
-        onClick={() => openModal(`/assets/images/materials/${material_group_id}/${material.imageName}`)}
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        className="bg-white shadow-lg rounded-lg overflow-hidden cursor-pointer transition-all duration-300 flip-card-container"
-      >
-        <img
-          src={`/assets/images/materials/${material_group_id}/${material.imageName}`}
-          alt={material.name}
-          className="w-full h-48 object-cover flip-card"
-        />
-        <div className="p-4">
-          <h4 className="text-lg font-semibold">
-            {material.name.replace(/-/g, " ").toUpperCase()}
-          </h4>
-        </div>
-      </motion.div>
-    ));
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-screen">
-        <h2 className="text-2xl font-bold">Loading materials...</h2>
-      </div>
-    );
-  }
+  const jsonLd = group
+    ? [
+        {
+          "@context": "https://schema.org",
+          "@type": "CollectionPage",
+          name: group.name,
+          description: truncate(group.description, 300) || undefined,
+          url: `${SITE_URL}/materials/${group.id}`,
+          mainEntity: {
+            "@type": "ItemList",
+            numberOfItems: group.materials.length,
+            itemListElement: group.materials.map((m, i) => ({
+              "@type": "ListItem",
+              position: i + 1,
+              name: materialName(m),
+              url: `${SITE_URL}/materials/${group.id}/${m.id}`,
+              image: materialImage(m, group.id),
+            })),
+          },
+        },
+        breadcrumbJsonLd([
+          { name: "Материали", path: "/materials" },
+          { name: group.name || "", path: `/materials/${group.id}` },
+        ]),
+      ]
+    : null;
 
   return (
     <>
-      <PageHeader
-        title={currentCategory && currentCategory["name"]}
-        subtitle={currentCategory && currentCategory["title"]}
-        backgroundImage={`/assets/images/materials/${material_group_id}/${[...materials, ...trendingMaterials][Math.floor(Math.random() * (materials.length + trendingMaterials.length))]?.imageName}`}
-      />
-
-      <div className="container mx-auto p-6">
-        {/* Menu bar for switching views */}
-        {trendingMaterials.length > 0 && (
-          <div className="flex justify-center mb-6 gap-4">
-            <button
-              onClick={() => setViewMode("all")}
-              className={`px-4 py-2 rounded-md font-medium border ${
-                viewMode === "all" ? "bg-darkGold text-white" : "bg-white text-darkGold border-darkGold"
-              }`}
-            >
-              Всички материали
-            </button>
-            <button
-              onClick={() => setViewMode("trending")}
-              className={`px-4 py-2 rounded-md font-medium border ${
-                viewMode === "trending" ? "bg-darkGold text-white" : "bg-white text-darkGold border-darkGold"
-              }`}
-            >
-              Премиум материали
-            </button>
-          </div>
-        )}
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6"
-        >
-          {viewMode === "trending" && renderMaterials(trendingMaterials)}
-          {viewMode === "all" && (
-            <>
-              {renderMaterials(trendingMaterials)}
-              {renderMaterials(visibleMaterials)}
-            </>
-          )}
-        </motion.div>
-
-        {viewMode === "all" && loadedItems < materials.length && (
-          <div className="flex justify-center mt-6">
-            <button
-              onClick={loadMoreMaterials}
-              className="px-6 py-3 bg-darkGold hover:bg-darkGoldHover text-white font-semibold rounded-lg transition"
-            >
-              Зареди още
-            </button>
-          </div>
-        )}
-
-        <AnimatePresence>
-          {selectedImage && (
-            <motion.div
-              className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={closeModal}
-            >
-              <button
-                className="absolute top-2 right-2 text-white rounded-full py-4 px-5"
-                onClick={closeModal}
-              >
-                ✖
-              </button>
-              <motion.div
-                className="relative p-2 max-w-3xl mx-auto bg-white rounded-lg shadow-xl"
-                initial={{ scale: 0.8 }}
-                animate={{ scale: 1 }}
-                exit={{ scale: 0.8 }}
-                transition={{ duration: 0.3 }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <img
-                  src={selectedImage}
-                  alt="Full Size"
-                  className="w-full h-auto rounded-lg"
-                />
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
+      {jsonLd && <JsonLd data={jsonLd} />}
+      <MaterialGroupClient />
     </>
   );
-};
-
-export default MaterialList;
+}

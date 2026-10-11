@@ -6,6 +6,7 @@ import { useSelector } from "react-redux";
 import useEmblaCarousel from "embla-carousel-react";
 import { useMediaQuery } from "react-responsive";
 import Link from "next/link";
+import { materialImageSrc, materialDisplayName } from "@/lib/materialImage";
 
 export default function MostValuedProducts() {
   const { materials: group_materials } = useSelector((state) => state.materials);
@@ -164,8 +165,8 @@ export default function MostValuedProducts() {
                     {/* Image that scales on hover */}
                     <div className="w-full h-full overflow-hidden rounded-lg">
                       <Image
-                        src={`/assets/images/materials/${product.group_id}/${product.imageName}`}
-                        alt={product.name}
+                        src={materialImageSrc(product, product.group_id)}
+                        alt={materialDisplayName(product)}
                         width={400}
                         height={400}
                         className={`object-cover w-full h-full transition-transform duration-500 ease-in-out overflow-hidden  ${isCenter ? "group-hover:scale-110" : ""}`}
@@ -179,7 +180,7 @@ export default function MostValuedProducts() {
                         className="text-white font-light uppercase tracking-widest text-center"
                         style={{ textShadow: "1px 2px 4px black" }}
                       >
-                        {product.name.replace(/-/g, " ")}
+                        {materialDisplayName(product)}
                       </p>
                     </div>
 

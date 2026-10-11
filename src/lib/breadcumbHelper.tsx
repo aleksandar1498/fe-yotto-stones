@@ -7,7 +7,7 @@ type CategoryMapping = {
 const endpointsMappings: Record<string, CategoryMapping> = {
   materials: {
     pageName: "Материали",
-    slugs: { "1": "Мрамор", "2": "Гранит", "3": "Оникс", "4": "Варовик" },
+    slugs: { "1": "Мрамор", "2": "Гранит", "3": "Оникс", "4": "Варовик", "5": "Травертин" },
   },
   edges: {
     pageName: "Обработки",

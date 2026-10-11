@@ -1,53 +1,102 @@
-"use client";
+import type { Metadata } from "next";
+import JsonLd from "@/components/seo/JsonLd";
+import MaterialDetailClient from "@/components/pages/materials/MaterialDetailClient";
+import {
+  SITE_URL,
+  breadcrumbJsonLd,
+  fetchMaterialGroups,
+  findGroup,
+  materialImage,
+  materialName,
+  truncate,
+  type SeoMaterial,
+} from "@/lib/seo/site";
 
-import { useParams } from "next/navigation";
-import { useSelector } from "react-redux";
-import { useEffect, useState } from "react";
-import MaterialDetailPremium from "@/components/pages/materials/MaterialDetailPremium";
-import PageHeader from "@/components/common/PageHeader";
-import { useMaterialsLoader } from "@/hooks/useMaterialsLoader";
+type Params = Promise<{ material_group_id: string; material_id: string }>;
 
-const MaterialDetailPage = () => {
+export const revalidate = 3600;
 
-  useMaterialsLoader();
-  const { material_group_id, material_id } = useParams();
-  const allGroups = useSelector((state: any) => state.materials?.materials);
-  const [material, setMaterial] = useState<any>(null);
-  const [currentCategory, setCurrentCategory] = useState<any>(null);
+export async function generateStaticParams() {
+  const groups = await fetchMaterialGroups();
+  return groups.flatMap((g) =>
+    g.materials.map((m) => ({ material_group_id: String(g.id), material_id: String(m.id) })),
+  );
+}
 
-  useEffect(() => {
-    if (!material_group_id || !material_id || !allGroups) return;
+async function lookup(groupId: string, materialId: string) {
+  const group = await findGroup(groupId);
+  const material = group?.materials.find((m) => String(m.id) === materialId) ?? null;
+  return { group, material };
+}
 
-    console.log("Fetching material with material_group_id:", material_group_id, "and material_id:", material_id);
-    console.log("All groups:", allGroups);
-    const group = allGroups.find((g: any) => g.id.toString() === material_group_id);
-    console.log("Found group:", group);
-    if (!group) return;
+function describe(material: SeoMaterial, groupName?: string) {
+  return (
+    truncate(material.seoDescription, 160) ||
+    truncate(material.description, 160) ||
+    `${materialName(material)}${groupName ? ` – ${groupName.toLowerCase()}` : ""} от Yotto Stones. Изработка на плотове, стъпала, первази и облицовки по размер.`
+  );
+}
 
-    setCurrentCategory(group);
+export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+  const { material_group_id, material_id } = await params;
+  const { group, material } = await lookup(material_group_id, material_id);
+  if (!group || !material) return { title: "Материал", robots: { index: false } };
 
-    const match = group.materials.find(
-      (m: any) => m.id.toString() === material_id
-    );
+  const name = materialName(material);
+  const title = group.name ? `${name} – ${group.name}` : name;
+  const description = describe(material, group.name);
+  const image = materialImage(material, group.id);
+  const path = `/materials/${group.id}/${material.id}`;
 
-    if (match) {
-      setMaterial({ ...match, group_id: material_group_id });
-      console.log("Material found:", match);
-    }
-  }, [material_group_id, material_id, allGroups]);
+  return {
+    title,
+    description,
+    alternates: { canonical: path },
+    openGraph: {
+      url: `${SITE_URL}${path}`,
+      title: `${title} | Yotto Stones`,
+      description,
+      images: [{ url: image, alt: name }],
+    },
+    twitter: { title: `${title} | Yotto Stones`, description, images: [image] },
+  };
+}
 
-  if (!material) {
-    return <div className="text-white p-6">Материалът не беше намерен...</div>;
-  }
+export default async function MaterialDetailPage({ params }: { params: Params }) {
+  const { material_group_id, material_id } = await params;
+  const groups = await fetchMaterialGroups();
+  const group = groups.find((g) => String(g.id) === material_group_id);
+  const material = group?.materials.find((m) => String(m.id) === material_id);
+  // No notFound(): the catalogue is cached for an hour, so a freshly added material
+  // must still render (the client loads live data). Unknown ids get noindex via metadata.
 
-  return <>
-   <PageHeader
-          title={currentCategory && currentCategory['name']}
-          subtitle={currentCategory && currentCategory['title']}
-          backgroundImage= {`/assets/images/materials/${material_group_id}/${material.imageName}`}
-        />
-  <MaterialDetailPremium material={material} groupId={material_group_id} />;
-  </>;
-};
+  const jsonLd =
+    group && material
+      ? [
+          {
+            "@context": "https://schema.org",
+            "@type": "Product",
+            name: materialName(material),
+            description: describe(material, group.name),
+            image: [materialImage(material, group.id)],
+            url: `${SITE_URL}/materials/${group.id}/${material.id}`,
+            category: group.name,
+            material: group.name,
+            brand: { "@type": "Brand", name: "Yotto Stones" },
+            ...(material.origin ? { countryOfOrigin: material.origin } : {}),
+          },
+          breadcrumbJsonLd([
+            { name: "Материали", path: "/materials" },
+            { name: group.name || "", path: `/materials/${group.id}` },
+            { name: materialName(material), path: `/materials/${group.id}/${material.id}` },
+          ]),
+        ]
+      : null;
 
-export default MaterialDetailPage;
+  return (
+    <>
+      {jsonLd && <JsonLd data={jsonLd} />}
+      <MaterialDetailClient />
+    </>
+  );
+}

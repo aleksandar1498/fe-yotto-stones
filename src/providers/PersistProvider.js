@@ -1,9 +1,10 @@
 "use client";
 
-import { PersistGate } from "redux-persist/integration/react";
-
-import { persistor } from "../lib/store";
+// Importing the persistor starts rehydration from localStorage. We deliberately
+// do not wrap children in <PersistGate loading={null}>: it rendered nothing on
+// the server, leaving every public page with empty HTML for search engines.
+import "../lib/store";
 
 export default function PersistProvider({ children }) {
-  return <PersistGate loading={null} persistor={persistor}>{children}</PersistGate>;
+  return children;
 }
