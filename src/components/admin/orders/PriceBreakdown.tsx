@@ -18,43 +18,60 @@ function Line({ line, cur }: { line: QuoteLine; cur: string }) {
   );
 }
 
-type Props = { quote: OrderQuote; positions: Position[]; compact?: boolean };
+type Props = { quote: OrderQuote; positions: Position[]; compact?: boolean; sections?: { id: string; label: string }[] };
 
-export default function PriceBreakdown({ quote, positions, compact }: Props) {
+export default function PriceBreakdown({ quote, positions, compact, sections }: Props) {
   const cur = quote.currency;
   const byId = new Map(positions.map((p, i) => [p.id, { p, i }]));
+  const noVat = quote.vatPct === 0;
+
+  const card = (pq: OrderQuote["positions"][number]) => {
+    const ref = byId.get(pq.positionId);
+    if (!ref) return null;
+    const type = PRODUCT_TYPES.find((t) => t.key === ref.p.type)?.label;
+    return (
+      <div key={pq.positionId} className="rounded-lg border border-gray-100">
+        <div className="flex items-start justify-between gap-3 bg-gray-50 px-3 py-2 font-semibold text-obsidian">
+          <span>
+            {ref.i + 1}. {type}
+            {ref.p.label ? ` – ${ref.p.label}` : ""} <span className="font-normal text-gray-500">× {ref.p.qty} бр.</span>
+          </span>
+          <span className="whitespace-nowrap">{formatMoney(pq.total, cur)}</span>
+        </div>
+        {pq.lines.length === 0 ? (
+          <p className="px-3 py-2 text-gray-400">{pq.warnings[0] ?? "—"}</p>
+        ) : (
+          <ul className="divide-y divide-gray-50">
+            {pq.lines.map((l) => (
+              <Line key={l.key} line={l} cur={cur} />
+            ))}
+          </ul>
+        )}
+      </div>
+    );
+  };
+
+  const grouped = !compact && sections && sections.length > 1;
 
   return (
     <div className="space-y-4 text-sm">
-      {!compact &&
-        quote.positions.map((pq) => {
-          const ref = byId.get(pq.positionId);
-          if (!ref) return null;
-          const type = PRODUCT_TYPES.find((t) => t.key === ref.p.type)?.label;
+      {!compact && !grouped && quote.positions.map(card)}
+      {grouped &&
+        sections.map((s, si) => {
+          const sq = quote.sections.find((x) => x.sectionId === s.id);
+          const items = quote.positions.filter((pq) => byId.get(pq.positionId)?.p.sectionId === s.id);
           return (
-            <div key={pq.positionId} className="rounded-lg border border-gray-100">
-              <div className="flex items-start justify-between gap-3 bg-gray-50 px-3 py-2 font-semibold text-obsidian">
-                <span>
-                  {ref.i + 1}. {type}
-                  {ref.p.label ? ` – ${ref.p.label}` : ""}{" "}
-                  <span className="font-normal text-gray-500">× {ref.p.qty} бр.</span>
+            <div key={s.id} className="space-y-2">
+              <div className="flex items-baseline justify-between gap-3 border-b border-royalGold/40 pb-1">
+                <span className="font-semibold text-darkGold">
+                  {si + 1}. {s.label}
                 </span>
-                <span className="whitespace-nowrap">{formatMoney(pq.total, cur)}</span>
+                <span className="whitespace-nowrap font-semibold text-obsidian">{formatMoney(sq?.total ?? 0, cur)}</span>
               </div>
-              {pq.lines.length === 0 ? (
-                <p className="px-3 py-2 text-gray-400">{pq.warnings[0] ?? "—"}</p>
-              ) : (
-                <ul className="divide-y divide-gray-50">
-                  {pq.lines.map((l) => (
-                    <Line key={l.key} line={l} cur={cur} />
-
-                  ))}
-                </ul>
-              )}
+              {items.length ? items.map(card) : <p className="text-xs text-gray-400">Няма позиции.</p>}
             </div>
           );
         })}
-
       {!compact && quote.serviceLines.length > 0 && (
         <div className="rounded-lg border border-gray-100">
           <div className="flex items-start justify-between gap-3 bg-gray-50 px-3 py-2 font-semibold text-obsidian">
@@ -76,10 +93,10 @@ export default function PriceBreakdown({ quote, positions, compact }: Props) {
         <Row label="Междинна сума" value={formatMoney(quote.subtotal, cur)} />
         {quote.discount > 0 && <Row label={`Отстъпка ${formatNum(quote.discountPct)}%`} value={`− ${formatMoney(quote.discount, cur)}`} />}
         {quote.minimumTopUp > 0 && <Row label="Доплащане до минимална поръчка" value={formatMoney(quote.minimumTopUp, cur)} />}
-        <Row label="Сума без ДДС" value={formatMoney(quote.net, cur)} strong />
-        <Row label={`ДДС ${formatNum(quote.vatPct)}%`} value={formatMoney(quote.vat, cur)} />
+        {!noVat && <Row label="Сума без ДДС" value={formatMoney(quote.net, cur)} strong />}
+        {!noVat && <Row label={`ДДС ${formatNum(quote.vatPct)}%`} value={formatMoney(quote.vat, cur)} />}
         <div className="mt-2 flex items-baseline justify-between border-t border-white/20 pt-2">
-          <dt className="text-sm uppercase tracking-wider text-royalGold">Общо с ДДС</dt>
+          <dt className="text-sm uppercase tracking-wider text-royalGold">{noVat ? "Обща сума" : "Общо с ДДС"}</dt>
           <dd className="text-2xl font-bold text-white">{formatMoney(quote.gross, cur)}</dd>
         </div>
       </dl>

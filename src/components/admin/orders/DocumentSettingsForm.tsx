@@ -123,6 +123,41 @@ export default function DocumentSettingsForm({ settings, onClose, onSaved }: Pro
         </Field>
       </div>
 
+      <H>Доставчик (данни на фирмата в документа за клиента)</H>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Юридическо име">
+          <input className={inputClass} value={s.company.legalName} onChange={(e) => setCompany({ legalName: e.target.value })} />
+        </Field>
+        <Field label="Седалище / адрес по регистрация">
+          <input className={inputClass} value={s.company.legalAddress} onChange={(e) => setCompany({ legalAddress: e.target.value })} />
+        </Field>
+        <Field label="ЕИК / Булстат">
+          <input className={inputClass} value={s.company.eik} onChange={(e) => setCompany({ eik: e.target.value })} />
+        </Field>
+        <Field label="ДДС №" hint="празно = не се показва">
+          <input className={inputClass} value={s.company.vatNumber} onChange={(e) => setCompany({ vatNumber: e.target.value })} />
+        </Field>
+        <Field label="МОЛ">
+          <input className={inputClass} value={s.company.mol} onChange={(e) => setCompany({ mol: e.target.value })} />
+        </Field>
+      </div>
+
+      <H>Плащане</H>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label="Начин на плащане">
+          <input className={inputClass} value={s.company.paymentMethod} onChange={(e) => setCompany({ paymentMethod: e.target.value })} />
+        </Field>
+        <Field label="Банка">
+          <input className={inputClass} value={s.company.bankName} onChange={(e) => setCompany({ bankName: e.target.value })} />
+        </Field>
+        <Field label="IBAN">
+          <input className={inputClass} value={s.company.iban} onChange={(e) => setCompany({ iban: e.target.value })} />
+        </Field>
+        <Field label="BIC / SWIFT">
+          <input className={inputClass} value={s.company.bic} onChange={(e) => setCompany({ bic: e.target.value })} />
+        </Field>
+      </div>
+
       <H>Срокове и плащане</H>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {TERM_PLACEHOLDERS.map((p) => (

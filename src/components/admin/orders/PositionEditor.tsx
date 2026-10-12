@@ -17,6 +17,7 @@ type Props = {
   position: Position;
   index: number;
   count: number;
+  number?: number; // order-wide position number when index is relative to a material group
   pricing: PricingSettings;
   stoneKey: string;
   quote?: PositionQuote;
@@ -78,6 +79,7 @@ export default function PositionEditor({
   position: p,
   index,
   count,
+  number,
   pricing,
   stoneKey,
   quote,
@@ -111,7 +113,7 @@ export default function PositionEditor({
     <section className={`rounded-xl border bg-white shadow-sm ${hasError ? "border-red-300" : "border-gray-200"}`}>
       <header className="flex flex-wrap items-center gap-2 border-b border-gray-100 px-4 py-3">
         <button className="flex flex-1 items-center gap-2 text-left" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-obsidian text-xs font-bold text-royalGold">{index + 1}</span>
+          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-obsidian text-xs font-bold text-royalGold">{number ?? index + 1}</span>
           <span className="font-semibold text-obsidian">
             {typeLabel}
             {p.label ? ` – ${p.label}` : ""}

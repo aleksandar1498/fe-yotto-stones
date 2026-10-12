@@ -57,6 +57,12 @@ export function previousStatus(s: OrderStatus): OrderStatus | undefined {
 export type Client = { name: string; phone: string; email?: string; address?: string };
 export type MaterialRef = { groupKey?: string; groupId?: number; materialId?: number; label: string };
 
+// One material in the order with its own price category / €/m²; positions point to it through sectionId.
+export type MaterialSection = { id: string; sort: number; material: MaterialRef; stoneKey: string; materialPriceM2?: number | null };
+
+// Per-order wording of the client document; empty/undefined fields fall back to the generated defaults.
+export type DocOverrides = { leadTime?: string; leadTimeNote?: string; included?: string[] };
+
 export type Attachment = {
   id: string;
   name: string;
@@ -77,14 +83,16 @@ export type Order = {
   number: number;
   status: OrderStatus;
   client: Client;
-  material: MaterialRef;
+  material: MaterialRef; // mirrors sections[0] (legacy single-material shape, summaries, filters)
   stoneKey: string;
   materialPriceM2?: number | null;
+  sections: MaterialSection[];
   positions: Position[];
   services: OrderService[];
   discountPct: number;
   notes?: string;
   dueDate?: string;
+  doc?: DocOverrides;
   pricing: PricingSettings;
   totals: OrderTotals;
   attachments: Attachment[];
@@ -112,11 +120,26 @@ export type OrderSummary = {
   closedAt?: number;
 };
 
-export type OrderDraft = Omit<Order, "id" | "number" | "attachments" | "statusLog" | "createdAt" | "updatedAt" | "totals"> & {
+export type OrderDraft = Omit<Order, "id" | "number" | "attachments" | "statusLog" | "createdAt" | "updatedAt" | "totals" | "sections"> & {
   id?: string;
   number?: number;
   createdAt?: number;
+  sections?: MaterialSection[];
 };
+
+const LEGACY_SECTION_ID = "main";
+
+// Old orders / request conversions have no sections – derive one from the top-level material fields.
+export function ensureSections(d: Pick<OrderDraft, "sections" | "material" | "stoneKey" | "materialPriceM2">): MaterialSection[] {
+  if (d.sections?.length) return [...d.sections].sort((a, b) => a.sort - b.sort);
+  return [{ id: LEGACY_SECTION_ID, sort: 0, material: d.material ?? { label: "" }, stoneKey: d.stoneKey, materialPriceM2: d.materialPriceM2 ?? null }];
+}
+
+export const sectionLabel = (s: MaterialSection, pricing: PricingSettings) =>
+  s.material.label || pricing.stones[s.stoneKey]?.label || "Материал";
+
+export const materialsLabel = (sections: MaterialSection[], pricing: PricingSettings) =>
+  sections.map((s) => sectionLabel(s, pricing)).join(" + ");
 
 export const MAX_ATTACHMENT_BYTES = 15 * 1024 * 1024;
 export const HISTORY_PAGE = 20;
@@ -155,13 +178,27 @@ function normalizePosition(p: Position): Position {
 export function toOrder(id: string, raw: unknown): Order | null {
   if (!isObj(raw)) return null;
   const r = raw as Record<string, unknown>;
+  const material = (r.material as MaterialRef) ?? { label: "" };
+  const sections = ensureSections({
+    sections: mapToList<MaterialSection>(r.sections).map((s) => ({ ...s, material: s.material ?? { label: "" } })),
+    material,
+    stoneKey: r.stoneKey as string,
+    materialPriceM2: (r.materialPriceM2 as number) ?? null,
+  });
+  const ids = new Set(sections.map((s) => s.id));
+  const doc = isObj(r.doc) ? (r.doc as DocOverrides) : undefined;
   return {
     ...(r as unknown as Order),
     id,
     client: (r.client as Client) ?? { name: "", phone: "" },
-    material: (r.material as MaterialRef) ?? { label: "" },
-    positions: mapToList<Position>(r.positions).map(normalizePosition).sort((a, b) => a.sort - b.sort),
+    material,
+    sections,
+    positions: mapToList<Position>(r.positions)
+      .map(normalizePosition)
+      .map((p) => (p.sectionId && ids.has(p.sectionId) ? p : { ...p, sectionId: sections[0].id }))
+      .sort((a, b) => a.sort - b.sort),
     services: mapToList<OrderService>(r.services),
+    doc: doc ? { ...doc, included: doc.included ? (Object.values(doc.included) as string[]) : undefined } : undefined,
     pricing: withDefaults(r.pricing as PricingSettings),
     attachments: mapToList<Attachment>(r.attachments).sort((a, b) => a.uploadedAt - b.uploadedAt),
     statusLog: Object.values((r.statusLog as Record<string, StatusLogEntry>) ?? {}).sort((a, b) => a.at - b.at),
@@ -178,12 +215,15 @@ export function newId(): string {
   return push(ref(db, "orders")).key as string;
 }
 
-export function quoteFor(o: Pick<OrderDraft, "positions" | "services" | "stoneKey" | "materialPriceM2" | "discountPct" | "pricing">): OrderQuote {
+export function quoteFor(
+  o: Pick<OrderDraft, "positions" | "services" | "stoneKey" | "materialPriceM2" | "discountPct" | "pricing" | "sections" | "material">
+): OrderQuote {
   return quoteOrder({
     positions: o.positions,
     services: o.services,
     stoneKey: o.stoneKey,
     materialPriceM2: o.materialPriceM2,
+    sections: ensureSections(o).map((s) => ({ id: s.id, stoneKey: s.stoneKey, materialPriceM2: s.materialPriceM2 })),
     discountPct: o.discountPct,
     pricing: o.pricing,
   });
@@ -195,7 +235,7 @@ function summaryOf(o: Order): Omit<OrderSummary, "id"> {
     status: o.status,
     clientName: o.client.name,
     clientPhone: o.client.phone,
-    materialLabel: o.material.label,
+    materialLabel: o.sections.length > 1 ? materialsLabel(o.sections, o.pricing) : o.material.label,
     stoneKey: o.stoneKey,
     materialGroupId: o.material.groupId,
     materialId: o.material.materialId,
@@ -279,14 +319,35 @@ async function nextOrderNumber(): Promise<number> {
 }
 
 // Writes field-by-field so attachments and statusLog (written elsewhere) are never clobbered by the editor.
+function cleanDoc(d?: DocOverrides): DocOverrides | undefined {
+  if (!d) return undefined;
+  const out: DocOverrides = {
+    leadTime: d.leadTime?.trim() || undefined,
+    leadTimeNote: d.leadTimeNote?.trim() || undefined,
+    included: d.included ? d.included.map((x) => x.trim()).filter(Boolean) : undefined,
+  };
+  return out.leadTime || out.leadTimeNote || out.included ? out : undefined;
+}
+
 export async function saveOrder(draft: OrderDraft, existing?: Order | null): Promise<Order> {
   const now = Date.now();
   const id = draft.id ?? newId();
   const isNew = !existing;
   const number = existing?.number ?? (await nextOrderNumber());
-  const q = quoteFor(draft);
+  const sections = ensureSections(draft).map((s, i) => ({ ...s, sort: i }));
+  const primary = sections[0];
+  const ids = new Set(sections.map((s) => s.id));
+  const positions = draft.positions.map((p) => (p.sectionId && ids.has(p.sectionId) ? p : { ...p, sectionId: primary.id }));
+  const doc = cleanDoc(draft.doc);
+  const q = quoteFor({ ...draft, sections, positions });
   const order: Order = {
     ...draft,
+    material: primary.material,
+    stoneKey: primary.stoneKey,
+    materialPriceM2: primary.materialPriceM2 ?? null,
+    sections,
+    positions,
+    doc,
     id,
     number,
     status: existing?.status ?? draft.status ?? "request",
@@ -306,11 +367,13 @@ export async function saveOrder(draft: OrderDraft, existing?: Order | null): Pro
     [`${base}/material`]: prune(order.material),
     [`${base}/stoneKey`]: order.stoneKey,
     [`${base}/materialPriceM2`]: order.materialPriceM2 ?? null,
+    [`${base}/sections`]: listToMap(order.sections),
     [`${base}/positions`]: listToMap(order.positions),
     [`${base}/services`]: listToMap(order.services),
     [`${base}/discountPct`]: order.discountPct || 0,
     [`${base}/notes`]: order.notes || null,
     [`${base}/dueDate`]: order.dueDate || null,
+    [`${base}/doc`]: order.doc ? prune(order.doc) : null,
     [`${base}/pricing`]: prune(order.pricing),
     [`${base}/totals`]: order.totals,
     [`${base}/createdAt`]: order.createdAt,

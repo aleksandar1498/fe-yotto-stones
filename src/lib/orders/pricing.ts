@@ -48,6 +48,7 @@ export type PricingSettings = {
   cutouts: Record<string, PricedItem>;
   services: Record<string, ServicePricing>;
   updatedAt?: number;
+  customizedAt?: number; // set when an order's own snapshot was edited by hand (per-order price overrides)
 };
 
 export type EdgeConfig = { profile: string; buildUp?: boolean };
@@ -56,6 +57,7 @@ export type PositionExtra = { label: string; amount: number };
 export type Position = {
   id: string;
   sort: number;
+  sectionId?: string; // material section the piece is cut from; falls back to the first/only section
   type: ProductType;
   label?: string;
   lengthCm: number;
@@ -91,8 +93,11 @@ export type PositionQuote = {
   warnings: string[];
 };
 
+export type SectionQuote = { sectionId: string; total: number; netAreaM2: number; billableAreaM2: number; positions: number };
+
 export type OrderQuote = {
   positions: PositionQuote[];
+  sections: SectionQuote[];
   serviceLines: PriceLine[];
   positionsTotal: number;
   servicesTotal: number;
@@ -108,11 +113,14 @@ export type OrderQuote = {
   currency: string;
 };
 
+export type QuoteSection = { id: string; stoneKey: string; materialPriceM2?: number | null };
+
 export type QuoteInput = {
   positions: Position[];
   services: OrderService[];
   stoneKey: string;
   materialPriceM2?: number | null;
+  sections?: QuoteSection[]; // multi-material orders; when absent every position uses stoneKey/materialPriceM2
   discountPct?: number;
   pricing: PricingSettings;
 };
@@ -331,7 +339,23 @@ export function quotePosition(p: Position, input: Omit<QuoteInput, "positions" |
 
 export function quoteOrder(input: QuoteInput): OrderQuote {
   const { pricing } = input;
-  const positions = [...input.positions].sort((a, b) => a.sort - b.sort).map((p) => quotePosition(p, input));
+  const sections = input.sections?.length ? input.sections : null;
+  const sectionOf = (p: Position) => (sections ? (sections.find((s) => s.id === p.sectionId) ?? sections[0]) : null);
+  const sorted = [...input.positions].sort((a, b) => a.sort - b.sort);
+  const positions = sorted.map((p) => {
+    const s = sectionOf(p);
+    return quotePosition(p, s ? { ...input, stoneKey: s.stoneKey, materialPriceM2: s.materialPriceM2 } : input);
+  });
+  const sectionQuotes: SectionQuote[] = (sections ?? []).map((s) => {
+    const own = positions.filter((_, i) => sectionOf(sorted[i])?.id === s.id);
+    return {
+      sectionId: s.id,
+      positions: own.length,
+      total: round2(own.reduce((a, q) => a + q.total, 0)),
+      netAreaM2: round3(own.reduce((a, q) => a + q.netAreaM2, 0)),
+      billableAreaM2: round3(own.reduce((a, q) => a + q.billableAreaM2, 0)),
+    };
+  });
   const serviceLines = input.services
     .filter((s) => num(s.qty) > 0)
     .map((s) => line(`service:${s.id}`, s.label, num(s.qty), UNIT_LABELS[s.unit] ?? "бр.", num(s.unitPrice)));
@@ -347,6 +371,7 @@ export function quoteOrder(input: QuoteInput): OrderQuote {
   const vat = round2((net * vatPct) / 100);
   return {
     positions,
+    sections: sectionQuotes,
     serviceLines,
     positionsTotal,
     servicesTotal,

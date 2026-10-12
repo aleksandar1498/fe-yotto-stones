@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { statusInfo, type Order } from "@/lib/orders/ordersData";
+import { ensureSections, sectionLabel, statusInfo, type Order } from "@/lib/orders/ordersData";
 import { formatMoney, formatNum, thicknessFactor, type OrderQuote } from "@/lib/orders/pricing";
 import { SIDE_LEGEND, dimensions, docNumber, formatLongDate, positionSpecs, productLabel, type DocumentSettings } from "@/lib/orders/documents";
 import { formatDateTime } from "../common";
@@ -13,7 +13,12 @@ export default function InternalDocument({ order, quote, settings, generatedBy }
   const { company } = settings;
   const money = (n: number) => formatMoney(n, quote.currency);
   const quotes = new Map(quote.positions.map((q) => [q.positionId, q]));
-  const stone = order.pricing.stones[order.stoneKey];
+  const sections = ensureSections(order);
+  const sectionOf = new Map(sections.map((s) => [s.id, s]));
+  const stonesUsed = [...new Set(sections.map((s) => s.stoneKey))].map((k) => order.pricing.stones[k]);
+  const perStone = (fmt: (s: (typeof stonesUsed)[number] | undefined) => string) =>
+    stonesUsed.length > 1 ? stonesUsed.map((s) => `${s?.label ?? "?"}: ${fmt(s)}`).join(" · ") : fmt(stonesUsed[0]);
+  const noVat = quote.vatPct === 0;
   const billable = quote.positions.reduce((a, q) => a + q.billableAreaM2, 0);
   const edgeM = quote.positions.reduce((a, q) => a + q.edgeM, 0);
   const posNo = new Map(order.positions.map((p, i) => [p.id, i + 1]));
@@ -64,14 +69,18 @@ export default function InternalDocument({ order, quote, settings, generatedBy }
           <KV k="Имейл" v={order.client.email || "—"} />
           <KV k="Адрес" v={order.client.address || "—"} />
         </Box>
-        <Box title="Материал">
-          <KV k="Материал" v={order.material.label || "—"} />
-          <KV k="Вид / ценова група" v={`${stone?.label ?? "—"} (${order.stoneKey})`} />
-          <KV k="Каталог" v={`${order.material.groupKey ?? "—"} / #${order.material.materialId ?? "—"}`} />
-          <KV
-            k="Цена м² (2 см)"
-            v={order.materialPriceM2 ? `${money(order.materialPriceM2)} (ръчна)` : money(stone?.materialM2 ?? 0)}
-          />
+        <Box title={sections.length > 1 ? `Материали (${sections.length})` : "Материал"}>
+          {sections.map((s, si) => {
+            const st = order.pricing.stones[s.stoneKey];
+            return (
+              <div key={s.id} className={si ? "mt-1 border-t border-neutral-200 pt-1" : ""}>
+                <KV k={sections.length > 1 ? `${si + 1}. Материал` : "Материал"} v={s.material.label || "—"} />
+                <KV k="Вид / ценова група" v={`${st?.label ?? "—"} (${s.stoneKey})`} />
+                <KV k="Каталог" v={`${s.material.groupKey ?? "—"} / #${s.material.materialId ?? "—"}`} />
+                <KV k="Цена м² (2 см)" v={s.materialPriceM2 ? `${money(s.materialPriceM2)} (ръчна)` : money(st?.materialM2 ?? 0)} />
+              </div>
+            );
+          })}
         </Box>
       </section>
 
@@ -81,12 +90,14 @@ export default function InternalDocument({ order, quote, settings, generatedBy }
           const q = quotes.get(p.id);
           const specs = positionSpecs(p, order.pricing);
           const att = order.attachments.filter((a) => a.positionId === p.id);
+          const sec = sectionOf.get(p.sectionId ?? "");
           return (
             <div key={p.id} className="avoid-break mt-2 rounded border border-neutral-300">
               <div className="flex flex-wrap items-baseline justify-between gap-2 bg-neutral-100 px-3 py-1.5">
                 <p className="font-semibold text-obsidian">
                   {i + 1}. {productLabel(p.type)}
                   {p.label ? ` – ${p.label}` : ""} · {dimensions(p)} · {p.qty} бр.
+                  {sections.length > 1 && sec && <span className="font-normal text-darkGold"> · {sectionLabel(sec, order.pricing)}</span>}
                 </p>
                 <p className="text-[8pt] text-neutral-600">
                   Нето {formatNum(q?.netAreaM2 ?? 0, 3)} м² · Фактурна {formatNum(q?.billableAreaM2 ?? 0, 3)} м² · Фира{" "}
@@ -127,9 +138,9 @@ export default function InternalDocument({ order, quote, settings, generatedBy }
           <KV k="Междинна сума" v={money(quote.subtotal)} />
           <KV k={`Отстъпка ${formatNum(quote.discountPct)}%`} v={`− ${money(quote.discount)}`} />
           <KV k="Доплащане до минимум" v={money(quote.minimumTopUp)} />
-          <KV k="Без ДДС" v={money(quote.net)} />
-          <KV k={`ДДС ${formatNum(quote.vatPct)}%`} v={money(quote.vat)} />
-          <KV k="Общо с ДДС" v={<strong>{money(quote.gross)}</strong>} />
+          {!noVat && <KV k="Без ДДС" v={money(quote.net)} />}
+          {!noVat && <KV k={`ДДС ${formatNum(quote.vatPct)}%`} v={money(quote.vat)} />}
+          <KV k={noVat ? "Общо" : "Общо с ДДС"} v={<strong>{money(quote.gross)}</strong>} />
         </Box>
       </section>
 
@@ -142,10 +153,11 @@ export default function InternalDocument({ order, quote, settings, generatedBy }
           <KV k="Множител подлепка" v={`×${order.pricing.buildUpMultiplier} (по подр. ${order.pricing.defaultBuildUpCm} см)`} />
           <KV k="Фира" v={Object.entries(order.pricing.wastePct).map(([k, v]) => `${productLabel(k as never)} ${v}%`).join(", ")} />
           <KV k="Коеф. дебелина" v={Object.entries(order.pricing.thicknessFactors).map(([k, v]) => `${k} см ×${v}`).join(", ")} />
-          <KV k="Рязане" v={`${money(stone?.cuttingM ?? 0)}/м`} />
+          <KV k="Рязане" v={perStone((s) => `${money(s?.cuttingM ?? 0)}/м`)} />
           <KV k="Водооткапващ канал" v={`${money(order.pricing.dripGrooveM)}/м`} />
-          <KV k="Импрегниране" v={`${money(stone?.sealM2 ?? 0)}/м² · чело ${money(stone?.sealEdgeM ?? 0)}/м`} />
+          <KV k="Импрегниране" v={perStone((s) => `${money(s?.sealM2 ?? 0)}/м² · чело ${money(s?.sealEdgeM ?? 0)}/м`)} />
           {order.pricing.updatedAt && <KV k="Ценоразпис от" v={formatDateTime(order.pricing.updatedAt)} />}
+          {order.pricing.customizedAt && <KV k="Ръчно коригирани цени" v={formatDateTime(order.pricing.customizedAt)} />}
         </div>
       </section>
 

@@ -1,19 +1,21 @@
-import type { Order } from "@/lib/orders/ordersData";
+import { ensureSections, sectionLabel, type Order } from "@/lib/orders/ordersData";
 import { formatMoney, formatNum, type OrderQuote } from "@/lib/orders/pricing";
 import {
   SIDE_LEGEND,
+  DEFAULT_LEAD_TIME_NOTE,
   contractTerms,
+  defaultLeadTime,
   dimensions,
   docNumber,
   formatLongDate,
-  includedWork,
+  includedList,
   isOffer,
   positionSpecs,
   productLabel,
   type DocumentSettings,
 } from "@/lib/orders/documents";
 
-type Props = { order: Order; quote: OrderQuote; settings: DocumentSettings; materialImage?: string };
+type Props = { order: Order; quote: OrderQuote; settings: DocumentSettings; materialImages?: Record<string, string> };
 
 const Check = () => (
   <span className="mt-[3px] inline-flex h-3 w-3 shrink-0 items-center justify-center rounded-full border border-royalGold text-[7px] text-darkGold">
@@ -22,7 +24,7 @@ const Check = () => (
 );
 
 // Client-facing offer / order contract. Shows billable area only (waste included), never net area or unit costs.
-export default function ClientDocument({ order, quote, settings, materialImage }: Props) {
+export default function ClientDocument({ order, quote, settings, materialImages = {} }: Props) {
   const { company } = settings;
   const terms = contractTerms(settings, isOffer(order.status));
   const money = (n: number) => formatMoney(n, quote.currency);
@@ -32,7 +34,13 @@ export default function ClientDocument({ order, quote, settings, materialImage }
   const advance = Math.round(quote.gross * settings.advancePct) / 100;
   const quotes = new Map(quote.positions.map((q) => [q.positionId, q]));
   const totalArea = quote.positions.reduce((a, q) => a + q.billableAreaM2, 0);
-  const included = [...includedWork(order, quote.positions), ...quote.serviceLines.map((l) => l.label)];
+  const included = includedList(order, quote);
+  const sections = ensureSections(order);
+  const multi = sections.length > 1;
+  const noVat = quote.vatPct === 0;
+  const numberOf = new Map(order.positions.map((p, i) => [p.id, i + 1]));
+  const supplier = company.legalName || company.name;
+  const hasBank = !!(company.bankName || company.iban || company.bic);
 
   return (
     <article className="text-[10.5pt] leading-snug text-neutral-800">
@@ -56,8 +64,18 @@ export default function ClientDocument({ order, quote, settings, materialImage }
         </div>
       </header>
 
-      {/* Parties & material */}
+      {/* Parties */}
       <section className="avoid-break mt-6 grid grid-cols-2 gap-5">
+        <div className="rounded-lg bg-neutral-50 p-4">
+          <h2 className="doc-label">Доставчик</h2>
+          <p className="mt-1 text-[12pt] font-semibold text-obsidian">{supplier}</p>
+          {company.legalAddress && <p>{company.legalAddress}</p>}
+          <dl className="mt-1.5 space-y-0.5 text-[9pt]">
+            {company.eik && <PartyRow label="ЕИК/Булстат" value={company.eik} />}
+            {company.vatNumber && <PartyRow label="ДДС №" value={company.vatNumber} />}
+            {company.mol && <PartyRow label="МОЛ" value={company.mol} />}
+          </dl>
+        </div>
         <div className="rounded-lg bg-neutral-50 p-4">
           <h2 className="doc-label">Възложител</h2>
           <p className="mt-1 text-[12pt] font-semibold text-obsidian">{order.client.name}</p>
@@ -65,13 +83,21 @@ export default function ClientDocument({ order, quote, settings, materialImage }
           {order.client.email && <p>{order.client.email}</p>}
           {order.client.address && <p className="mt-1 text-neutral-600">Обект: {order.client.address}</p>}
         </div>
-        <div className="flex gap-4 rounded-lg bg-neutral-50 p-4">
-          {materialImage && <img src={materialImage} alt="" className="h-20 w-20 shrink-0 rounded-md object-cover" />}
-          <div className="min-w-0">
-            <h2 className="doc-label">Материал</h2>
-            <p className="mt-1 text-[12pt] font-semibold text-obsidian">{order.material.label || "—"}</p>
-            <p className="text-neutral-600">{order.pricing.stones[order.stoneKey]?.label ?? ""} · естествен камък</p>
-          </div>
+      </section>
+
+      {/* Material */}
+      <section className="avoid-break mt-5 rounded-lg bg-neutral-50 p-4">
+        <h2 className="doc-label">{multi ? "Материали" : "Материал"}</h2>
+        <div className={`mt-1 grid gap-3 ${multi ? "grid-cols-2" : ""}`}>
+          {sections.map((s) => (
+            <div key={s.id} className="flex items-center gap-4">
+              {materialImages[s.id] && <img src={materialImages[s.id]} alt="" className={`${multi ? "h-12 w-12" : "h-16 w-16"} shrink-0 rounded-md object-cover`} />}
+              <div className="min-w-0">
+                <p className={`${multi ? "text-[10.5pt]" : "text-[12pt]"} font-semibold text-obsidian`}>{s.material.label || "—"}</p>
+                <p className="text-neutral-600">{order.pricing.stones[s.stoneKey]?.label ?? ""} · естествен камък</p>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -80,10 +106,10 @@ export default function ClientDocument({ order, quote, settings, materialImage }
         <div>
           <p className="doc-label">Срок на изпълнение</p>
           <p className="text-[12pt] font-semibold text-obsidian">
-            {order.dueDate ? `Готовност до ${formatLongDate(order.dueDate)}` : "По договаряне след окончателно замерване"}
+            {order.doc?.leadTime || defaultLeadTime(order.dueDate)}
           </p>
         </div>
-        <p className="max-w-[45%] text-right text-[8.5pt] text-neutral-500">Срокът тече от окончателното замерване и получаването на аванса.</p>
+        <p className="max-w-[45%] text-right text-[8.5pt] text-neutral-500">{order.doc?.leadTimeNote || DEFAULT_LEAD_TIME_NOTE}</p>
       </section>
 
       {/* Positions */}
@@ -101,12 +127,26 @@ export default function ClientDocument({ order, quote, settings, materialImage }
             </tr>
           </thead>
           <tbody>
-            {order.positions.map((p, i) => {
+            {sections.map((s) => {
+              const sq = quote.sections.find((x) => x.sectionId === s.id);
+              const rows = order.positions.filter((p) => p.sectionId === s.id || (!multi && !p.sectionId));
+              return [
+                multi && (
+                  <tr key={"h-" + s.id} className="avoid-break border-b border-royalGold/50 bg-neutral-50">
+                    <td colSpan={4} className="px-1 py-1.5 font-semibold text-darkGold">
+                      {sectionLabel(s, order.pricing)}
+                      <span className="ml-2 font-normal text-neutral-500">{order.pricing.stones[s.stoneKey]?.label ?? ""}</span>
+                    </td>
+                    <td className="whitespace-nowrap py-1.5 pl-3 text-right text-neutral-600">{formatNum(sq?.billableAreaM2 ?? 0, 3)} м²</td>
+                    <td className="whitespace-nowrap py-1.5 pl-3 text-right font-semibold text-obsidian">{money(sq?.total ?? 0)}</td>
+                  </tr>
+                ),
+                ...rows.map((p) => {
               const q = quotes.get(p.id);
               const specs = positionSpecs(p, order.pricing);
               return (
                 <tr key={p.id} className="avoid-break border-b border-neutral-200 align-top">
-                  <td className="py-2.5 text-neutral-500">{i + 1}</td>
+                  <td className="py-2.5 text-neutral-500">{numberOf.get(p.id)}</td>
                   <td className="py-2.5 pr-3">
                     <p className="font-semibold text-obsidian">
                       {productLabel(p.type)}
@@ -114,8 +154,8 @@ export default function ClientDocument({ order, quote, settings, materialImage }
                     </p>
                     {specs.length > 0 ? (
                       <ul className="mt-0.5 space-y-0.5 text-[8.5pt] text-neutral-600">
-                        {specs.map((s) => (
-                          <li key={s}>· {s}</li>
+                        {specs.map((x) => (
+                          <li key={x}>· {x}</li>
                         ))}
                       </ul>
                     ) : (
@@ -128,6 +168,8 @@ export default function ClientDocument({ order, quote, settings, materialImage }
                   <td className="whitespace-nowrap py-2.5 pl-3 text-right font-semibold text-obsidian">{money(q?.total ?? 0)}</td>
                 </tr>
               );
+                }),
+              ];
             })}
           </tbody>
           <tfoot>
@@ -176,6 +218,18 @@ export default function ClientDocument({ order, quote, settings, materialImage }
               </li>
             ))}
           </ul>
+          {(hasBank || company.paymentMethod) && (
+            <div className="mt-5 rounded-lg border border-neutral-200 p-4 text-[9pt]">
+              <h2 className="doc-label">Плащане{company.paymentMethod ? `: ${company.paymentMethod}` : ""}</h2>
+              <dl className="mt-1.5 space-y-0.5">
+                {company.bankName && <PartyRow label="Банка" value={company.bankName} />}
+                {company.iban && <PartyRow label="IBAN" value={company.iban} mono />}
+                {company.bic && <PartyRow label="BIC/SWIFT" value={company.bic} mono />}
+                {company.iban && <PartyRow label="Получател" value={supplier} />}
+                <PartyRow label="Основание" value={`${offer ? "Оферта" : "Поръчка"} № ${docNumber(order.number)}`} />
+              </dl>
+            </div>
+          )}
         </div>
         <div className="self-start rounded-lg bg-obsidian p-5 text-platinum">
           <dl className="space-y-1.5 text-[9.5pt]">
@@ -184,8 +238,8 @@ export default function ClientDocument({ order, quote, settings, materialImage }
             {quote.discount > 0 && <TotalRow label={`Отстъпка ${formatNum(quote.discountPct)}%`} value={`− ${money(quote.discount)}`} />}
             {quote.minimumTopUp > 0 && <TotalRow label="До минимална стойност" value={money(quote.minimumTopUp)} />}
             <div className="!my-2 border-t border-white/15" />
-            <TotalRow label="Сума без ДДС" value={money(quote.net)} />
-            <TotalRow label={`ДДС ${formatNum(quote.vatPct)}%`} value={money(quote.vat)} />
+            {!noVat && <TotalRow label="Сума без ДДС" value={money(quote.net)} />}
+            {!noVat && <TotalRow label={`ДДС ${formatNum(quote.vatPct)}%`} value={money(quote.vat)} />}
           </dl>
           <div className="mt-3 border-t border-royalGold/50 pt-3">
             <p className="text-[8pt] uppercase tracking-[0.25em] text-royalGold">Обща сума</p>
@@ -214,7 +268,7 @@ export default function ClientDocument({ order, quote, settings, materialImage }
       {/* Signatures */}
       <section className="avoid-break mt-10 grid grid-cols-2 gap-16 text-[9pt]">
         {[
-          ["Изпълнител", company.name],
+          ["Изпълнител", supplier],
           ["Възложител", order.client.name],
         ].map(([role, name]) => (
           <div key={role}>
@@ -250,6 +304,15 @@ export default function ClientDocument({ order, quote, settings, materialImage }
         </div>
       </footer>
     </article>
+  );
+}
+
+function PartyRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+  return (
+    <div className="flex gap-2">
+      <dt className="w-24 shrink-0 text-neutral-500">{label}:</dt>
+      <dd className={`text-neutral-800 ${mono ? "font-mono tracking-wide" : ""}`}>{value}</dd>
+    </div>
   );
 }
 

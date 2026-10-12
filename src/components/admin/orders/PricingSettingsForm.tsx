@@ -15,23 +15,25 @@ function H({ children }: { children: React.ReactNode }) {
   return <h3 className="mb-2 mt-6 text-sm font-semibold uppercase tracking-wider text-darkGold first:mt-0">{children}</h3>;
 }
 
+export function invalidPricing(p: PricingSettings): string {
+  const bad =
+    p.vatPct < 0 ||
+    p.vatPct > 100 ||
+    Object.values(p.wastePct).some((w) => w < 0 || w > 200) ||
+    Object.values(p.stones).some((s) => s.materialM2 <= 0);
+  return bad ? "Проверете стойностите: ДДС 0–100%, фира 0–200%, цена на материал > 0." : "";
+}
+
 export default function PricingSettingsForm({ pricing, groups, onClose, onSaved }: Props) {
   const [p, setP] = useState<PricingSettings>(() => structuredClone(pricing));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const stoneKeys = Object.keys(p.stones);
-  const set = (patch: Partial<PricingSettings>) => setP((cur) => ({ ...cur, ...patch }));
-  const n = (v: number | null) => v ?? 0;
 
   async function save() {
     setError("");
-    const bad =
-      p.vatPct < 0 ||
-      p.vatPct > 100 ||
-      Object.values(p.wastePct).some((w) => w < 0 || w > 200) ||
-      Object.values(p.stones).some((s) => s.materialM2 <= 0);
+    const bad = invalidPricing(p);
     if (bad) {
-      setError("Проверете стойностите: ДДС 0–100%, фира 0–200%, цена на материал > 0.");
+      setError(bad);
       return;
     }
     setSaving(true);
@@ -73,6 +75,29 @@ export default function PricingSettingsForm({ pricing, groups, onClose, onSaved 
       </p>
       {error && <p className="mb-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
+      <PricingFields value={p} onChange={setP} groups={groups} />
+      <p className="mt-6 text-xs text-gray-400">
+        Валута: {p.currency}. Цените се въвеждат без ДДС.
+      </p>
+    </Modal>
+  );
+}
+
+// Editable price list body, shared by the global price list and the per-order price overrides.
+export function PricingFields({
+  value: p,
+  onChange,
+  groups,
+}: {
+  value: PricingSettings;
+  onChange: (fn: (cur: PricingSettings) => PricingSettings) => void;
+  groups: GroupEntry[];
+}) {
+  const stoneKeys = Object.keys(p.stones);
+  const set = (patch: Partial<PricingSettings>) => onChange((cur) => ({ ...cur, ...patch }));
+  const n = (v: number | null) => v ?? 0;
+  return (
+    <>
       <H>Общи</H>
       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
         {(
@@ -254,9 +279,6 @@ export default function PricingSettingsForm({ pricing, groups, onClose, onSaved 
           ))}
         </div>
       </div>
-      <p className="mt-6 text-xs text-gray-400">
-        Валута: {p.currency}. Цените се въвеждат без ДДС.
-      </p>
-    </Modal>
+    </>
   );
 }

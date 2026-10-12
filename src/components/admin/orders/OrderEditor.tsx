@@ -6,6 +6,7 @@ import {
   ORDER_STATUSES,
   changeStatus,
   deleteOrder,
+  ensureSections,
   isActiveStatus,
   newId,
   nextStatuses,
@@ -14,6 +15,8 @@ import {
   saveOrder,
   statusInfo,
   subscribeOrder,
+  type DocOverrides,
+  type MaterialSection,
   type Order,
   type OrderDraft,
   type OrderStatus,
@@ -21,16 +24,19 @@ import {
 import {
   UNIT_LABELS,
   formatMoney,
+  formatNum,
   stoneKeyForGroup,
   type OrderService,
   type Position,
   type PricingSettings,
 } from "@/lib/orders/pricing";
+import { DEFAULT_LEAD_TIME_NOTE, defaultLeadTime, includedList } from "@/lib/orders/documents";
 import { useAdminAuth } from "@/providers/AdminAuthProvider";
 import { ErrorBox, Field, Modal, NumInput, Spinner, dangerButton, inputClass, primaryButton, secondaryButton } from "../ui";
 import Attachments from "./Attachments";
 import PositionEditor from "./PositionEditor";
 import PriceBreakdown from "./PriceBreakdown";
+import { PricingFields, invalidPricing } from "./PricingSettingsForm";
 import { StatusBadge, formatDateTime, orderNo } from "./common";
 
 type Props = {
@@ -44,23 +50,48 @@ type Props = {
   onToast: (msg: string) => void;
 };
 
-type Errors = { client?: Record<string, string>; material?: string; positions?: string; byPosition: Record<string, Record<string, string>> };
+type Errors = {
+  client?: Record<string, string>;
+  sections?: Record<string, string>;
+  positions?: string;
+  byPosition: Record<string, Record<string, string>>;
+};
 
 const card = "rounded-xl bg-white p-5 shadow-sm";
 const sectionTitle = "mb-4 text-sm font-semibold uppercase tracking-[0.15em] text-darkGold";
 
-function blankPosition(sort: number, thicknessCm: number, type: Position["type"] = "windowsill"): Position {
-  return { id: newId(), sort, type, lengthCm: 0, depthCm: 0, thicknessCm, qty: 1, edges: {}, drip: {}, cutouts: {}, extras: [] };
+function blankPosition(sort: number, thicknessCm: number, type: Position["type"] = "windowsill", sectionId?: string): Position {
+  return { id: newId(), sort, sectionId, type, lengthCm: 0, depthCm: 0, thicknessCm, qty: 1, edges: {}, drip: {}, cutouts: {}, extras: [] };
 }
 
+function blankSection(pricing: PricingSettings, sort: number): MaterialSection {
+  return { id: newId(), sort, material: { label: "" }, stoneKey: Object.keys(pricing.stones)[0] ?? "", materialPriceM2: null };
+}
+
+// Every draft in the editor has explicit sections and every position points to one of them.
+function normalizeDraft(d: OrderDraft): OrderDraft {
+  const sections = ensureSections(d);
+  const ids = new Set(sections.map((s) => s.id));
+  return {
+    ...d,
+    sections,
+    positions: d.positions.map((p) => (p.sectionId && ids.has(p.sectionId) ? p : { ...p, sectionId: sections[0].id })),
+  };
+}
+
+// Drops bookkeeping fields so an order snapshot can be compared with the global price list.
+const priceSignature = ({ updatedAt: _u, customizedAt: _c, ...rest }: PricingSettings) => JSON.stringify(rest);
+
 function blankDraft(pricing: PricingSettings): OrderDraft {
+  const section = blankSection(pricing, 0);
   return {
     status: "request",
     client: { name: "", phone: "", email: "", address: "" },
-    material: { label: "" },
-    stoneKey: Object.keys(pricing.stones)[0] ?? "",
+    material: section.material,
+    stoneKey: section.stoneKey,
     materialPriceM2: null,
-    positions: [blankPosition(0, 2)],
+    sections: [section],
+    positions: [blankPosition(0, 2, "windowsill", section.id)],
     services: [],
     discountPct: 0,
     notes: "",
@@ -70,7 +101,7 @@ function blankDraft(pricing: PricingSettings): OrderDraft {
 }
 
 function draftFrom(o: Order): OrderDraft {
-  return {
+  return normalizeDraft({
     id: o.id,
     number: o.number,
     createdAt: o.createdAt,
@@ -79,29 +110,41 @@ function draftFrom(o: Order): OrderDraft {
     material: o.material,
     stoneKey: o.stoneKey,
     materialPriceM2: o.materialPriceM2 ?? null,
+    sections: o.sections,
     positions: o.positions,
     services: o.services,
     discountPct: o.discountPct,
     notes: o.notes ?? "",
     dueDate: o.dueDate ?? "",
+    doc: o.doc,
     pricing: o.pricing,
     closedAt: o.closedAt,
-  };
+  });
 }
 
 // Copy as a fresh request at today's prices: new ids everywhere, no attachments/history.
 export function duplicateDraft(o: Order | OrderDraft, pricing: PricingSettings): OrderDraft {
+  const src = ensureSections(o);
+  const idMap = new Map(src.map((s) => [s.id, newId()]));
+  const sections = src.map((s, i) => ({ ...structuredClone(s), id: idMap.get(s.id)!, sort: i }));
   return {
     status: "request",
     client: { ...o.client },
-    material: { ...o.material },
-    stoneKey: o.stoneKey,
-    materialPriceM2: o.materialPriceM2 ?? null,
-    positions: o.positions.map((p, i) => ({ ...structuredClone(p), id: newId(), sort: i })),
+    material: { ...sections[0].material },
+    stoneKey: sections[0].stoneKey,
+    materialPriceM2: sections[0].materialPriceM2 ?? null,
+    sections,
+    positions: o.positions.map((p, i) => ({
+      ...structuredClone(p),
+      id: newId(),
+      sort: i,
+      sectionId: idMap.get(p.sectionId ?? "") ?? sections[0].id,
+    })),
     services: o.services.map((s) => ({ ...s, id: newId(), unitPrice: pricing.services[s.key]?.price ?? s.unitPrice })),
     discountPct: o.discountPct,
     notes: o.notes ?? "",
     dueDate: "",
+    doc: o.doc ? structuredClone(o.doc) : undefined,
     pricing,
   };
 }
@@ -113,7 +156,9 @@ function validate(d: OrderDraft): Errors {
   if (d.client.phone.replace(/\D/g, "").length < 6) client.phone = "Въведете валиден телефон.";
   if (d.client.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.client.email)) client.email = "Невалиден имейл.";
   if (Object.keys(client).length) e.client = client;
-  if (!d.stoneKey || !d.pricing.stones[d.stoneKey]) e.material = "Изберете вид камък.";
+  const sections: Record<string, string> = {};
+  for (const s of ensureSections(d)) if (!s.stoneKey || !d.pricing.stones[s.stoneKey]) sections[s.id] = "Изберете вид камък.";
+  if (Object.keys(sections).length) e.sections = sections;
   if (d.positions.length === 0) e.positions = "Добавете поне една позиция.";
   for (const p of d.positions) {
     const pe: Record<string, string> = {};
@@ -127,18 +172,26 @@ function validate(d: OrderDraft): Errors {
   }
   return e;
 }
-const hasErrors = (e: Errors) => !!(e.client || e.material || e.positions || Object.keys(e.byPosition).length);
+const hasErrors = (e: Errors) => !!(e.client || e.sections || e.positions || Object.keys(e.byPosition).length);
 
 export default function OrderEditor({ orderId, template, pricing, groups, onClose, onSaved, onDuplicate, onToast }: Props) {
   const { user } = useAdminAuth();
   const [existing, setExisting] = useState<Order | null | undefined>(orderId ? undefined : null);
   const [loadError, setLoadError] = useState("");
-  const [draft, setDraft] = useState<OrderDraft | null>(() => (orderId ? null : template ?? blankDraft(pricing)));
+  const [draft, setDraft] = useState<OrderDraft | null>(() => (orderId ? null : normalizeDraft(template ?? blankDraft(pricing))));
   const [dirty, setDirty] = useState(!orderId && !!template);
   const [errors, setErrors] = useState<Errors | null>(null);
   const [saving, setSaving] = useState(false);
   const [statusBusy, setStatusBusy] = useState(false);
-  const [confirm, setConfirm] = useState<null | { kind: "status"; status: OrderStatus } | { kind: "delete" } | { kind: "leave" }>(null);
+  const [confirm, setConfirm] = useState<
+    | null
+    | { kind: "status"; status: OrderStatus }
+    | { kind: "delete" }
+    | { kind: "leave" }
+    | { kind: "reprice" }
+    | { kind: "removeSection"; id: string }
+  >(null);
+  const [pricingOpen, setPricingOpen] = useState(false);
   const [defaultThickness, setDefaultThickness] = useState(2);
   const [servicePick, setServicePick] = useState("");
 
@@ -186,15 +239,73 @@ export default function OrderEditor({ orderId, template, pricing, groups, onClos
   const readOnly = !isActiveStatus(status);
   const shownErrors = liveErrors ?? { byPosition: {} };
   const pricingChanged = (draft.pricing.updatedAt ?? 0) !== (pricing.updatedAt ?? 0);
+  const customized = !!draft.pricing.customizedAt;
+  const sections = draft.sections ?? ensureSections(draft);
 
   const update = (patch: Partial<OrderDraft>) => {
     setDraft((d) => (d ? { ...d, ...patch } : d));
     setDirty(true);
   };
-  const setPositions = (fn: (list: Position[]) => Position[]) =>
-    update({ positions: fn(draft.positions).map((p, i) => ({ ...p, sort: i })) });
+  // Positions are kept grouped by material (in section order) so numbering matches the documents.
+  const orderPositions = (list: Position[], secs: MaterialSection[] = sections) => {
+    const rank = new Map(secs.map((s, i) => [s.id, i]));
+    return list
+      .map((p, i) => ({ p, i }))
+      .sort((a, b) => (rank.get(a.p.sectionId ?? "") ?? 0) - (rank.get(b.p.sectionId ?? "") ?? 0) || a.i - b.i)
+      .map(({ p }, i) => ({ ...p, sort: i }));
+  };
+  const setPositions = (fn: (list: Position[]) => Position[]) => update({ positions: orderPositions(fn(draft.positions)) });
+  const withSections = (secs: MaterialSection[], positions = draft.positions): Partial<OrderDraft> => {
+    const sorted = secs.map((s, i) => ({ ...s, sort: i }));
+    return {
+      sections: sorted,
+      material: sorted[0].material,
+      stoneKey: sorted[0].stoneKey,
+      materialPriceM2: sorted[0].materialPriceM2 ?? null,
+      positions: orderPositions(positions, sorted),
+    };
+  };
+  const updateSection = (id: string, patch: Partial<MaterialSection>) =>
+    update(withSections(sections.map((s) => (s.id === id ? { ...s, ...patch } : s))));
+  const addSection = () => {
+    const s = blankSection(draft.pricing, sections.length);
+    update(withSections([...sections, s], [...draft.positions, blankPosition(draft.positions.length, defaultThickness, "windowsill", s.id)]));
+  };
+  const removeSection = (id: string) =>
+    update(withSections(sections.filter((s) => s.id !== id), draft.positions.filter((p) => p.sectionId !== id)));
+  const moveSection = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    if (j < 0 || j >= sections.length) return;
+    const copy = [...sections];
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+    update(withSections(copy));
+  };
+  const addPosition = (sectionId: string, t: Position["type"]) =>
+    setPositions((l) => [...l, blankPosition(l.length, t === "countertop" && defaultThickness < 3 ? 3 : defaultThickness, t, sectionId)]);
 
-  const selectedGroup = groups.find((g) => g.key === draft.material.groupKey);
+  const repriceWithCurrent = () =>
+    update({
+      pricing,
+      services: draft.services.map((s) => ({ ...s, unitPrice: pricing.services[s.key]?.price ?? s.unitPrice })),
+    });
+  const applyOrderPricing = (next: PricingSettings) => {
+    const old = draft.pricing;
+    const same = priceSignature(next) === priceSignature(pricing);
+    update({
+      pricing: same ? pricing : { ...next, customizedAt: Date.now() },
+      // Services still at the old list price follow the new one; hand-edited service prices stay as they are.
+      services: draft.services.map((s) => {
+        const was = old.services[s.key]?.price;
+        const now = next.services[s.key]?.price;
+        return was != null && now != null && s.unitPrice === was ? { ...s, unitPrice: now } : s;
+      }),
+    });
+    setPricingOpen(false);
+  };
+
+  const doc: DocOverrides = draft.doc ?? {};
+  const setDoc = (patch: Partial<DocOverrides>) => update({ doc: { ...doc, ...patch } });
+  const autoIncluded = includedList({ ...draft, sections, doc: undefined }, quote);
 
   async function save() {
     if (!draft) return;
@@ -350,10 +461,10 @@ export default function OrderEditor({ orderId, template, pricing, groups, onClos
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
         <div className="min-w-0 space-y-6">
-          {/* Client & material */}
-          <fieldset disabled={readOnly} className={`${card} grid gap-6 lg:grid-cols-2`}>
-            <div className="space-y-3">
-              <h2 className={sectionTitle}>Клиент</h2>
+          {/* Client */}
+          <fieldset disabled={readOnly} className={`${card} space-y-3`}>
+            <h2 className={sectionTitle}>Клиент</h2>
+            <div className="grid gap-3 lg:grid-cols-2">
               <Field label="Име *" error={shownErrors.client?.name}>
                 <input
                   className={inputClass}
@@ -362,26 +473,6 @@ export default function OrderEditor({ orderId, template, pricing, groups, onClos
                   onChange={(e) => update({ client: { ...draft.client, name: e.target.value } })}
                 />
               </Field>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Телефон *" error={shownErrors.client?.phone}>
-                  <input
-                    className={inputClass}
-                    type="tel"
-                    value={draft.client.phone}
-                    maxLength={30}
-                    onChange={(e) => update({ client: { ...draft.client, phone: e.target.value } })}
-                  />
-                </Field>
-                <Field label="Имейл" error={shownErrors.client?.email}>
-                  <input
-                    className={inputClass}
-                    type="email"
-                    value={draft.client.email ?? ""}
-                    maxLength={120}
-                    onChange={(e) => update({ client: { ...draft.client, email: e.target.value } })}
-                  />
-                </Field>
-              </div>
               <Field label="Адрес на обекта">
                 <input
                   className={inputClass}
@@ -390,96 +481,33 @@ export default function OrderEditor({ orderId, template, pricing, groups, onClos
                   onChange={(e) => update({ client: { ...draft.client, address: e.target.value } })}
                 />
               </Field>
-            </div>
-            <div className="space-y-3">
-              <h2 className={sectionTitle}>Материал</h2>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Група от каталога">
-                  <select
-                    className={inputClass}
-                    value={draft.material.groupKey ?? ""}
-                    onChange={(e) => {
-                      const g = groups.find((x) => x.key === e.target.value);
-                      update({
-                        material: g ? { groupKey: g.key, groupId: g.id, label: g.name } : { label: "" },
-                        stoneKey: (g && stoneKeyForGroup(draft.pricing, g.id)) || draft.stoneKey,
-                      });
-                    }}
-                  >
-                    <option value="">— по избор —</option>
-                    {groups.map((g) => (
-                      <option key={g.key} value={g.key}>
-                        {g.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Материал">
-                  <select
-                    className={inputClass}
-                    value={draft.material.materialId ?? ""}
-                    disabled={readOnly || !selectedGroup}
-                    onChange={(e) => {
-                      const m = selectedGroup?.materials.find((x) => String(x.id) === e.target.value);
-                      if (!selectedGroup) return;
-                      update({
-                        material: {
-                          groupKey: selectedGroup.key,
-                          groupId: selectedGroup.id,
-                          materialId: m?.id,
-                          label: m ? `${selectedGroup.name} ${m.displayName || m.name}` : selectedGroup.name,
-                        },
-                      });
-                    }}
-                  >
-                    <option value="">{selectedGroup ? "— изберете —" : "първо група"}</option>
-                    {selectedGroup?.materials.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.displayName || m.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              </div>
-              {draft.material.materialId != null && selectedGroup && (
-                <MaterialPreview group={selectedGroup} materialId={draft.material.materialId} />
-              )}
-              {!selectedGroup && (
-                <Field label="Описание на материала" hint="ако камъкът не е в каталога">
-                  <input
-                    className={inputClass}
-                    value={draft.material.label}
-                    maxLength={120}
-                    onChange={(e) => update({ material: { label: e.target.value } })}
-                  />
-                </Field>
-              )}
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Ценова категория *" error={shownErrors.material}>
-                  <select className={inputClass} value={draft.stoneKey} onChange={(e) => update({ stoneKey: e.target.value })}>
-                    {Object.entries(draft.pricing.stones).map(([k, s]) => (
-                      <option key={k} value={k}>
-                        {s.label} – {formatMoney(s.materialM2, draft.pricing.currency)}/м²
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label="Цена материал, €/м²" hint="празно = по ценоразпис">
-                  <NumInput
-                    value={draft.materialPriceM2 ?? null}
-                    min={0}
-                    placeholder={String(draft.pricing.stones[draft.stoneKey]?.materialM2 ?? "")}
-                    onChange={(n) => update({ materialPriceM2: n && n > 0 ? n : null })}
-                  />
-                </Field>
-              </div>
+              <Field label="Телефон *" error={shownErrors.client?.phone}>
+                <input
+                  className={inputClass}
+                  type="tel"
+                  value={draft.client.phone}
+                  maxLength={30}
+                  onChange={(e) => update({ client: { ...draft.client, phone: e.target.value } })}
+                />
+              </Field>
+              <Field label="Имейл" error={shownErrors.client?.email}>
+                <input
+                  className={inputClass}
+                  type="email"
+                  value={draft.client.email ?? ""}
+                  maxLength={120}
+                  onChange={(e) => update({ client: { ...draft.client, email: e.target.value } })}
+                />
+              </Field>
             </div>
           </fieldset>
 
-          {/* Positions */}
-          <div className="space-y-3">
+          {/* Materials, each with its own positions */}
+          <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-obsidian">Позиции ({draft.positions.length})</h2>
+              <h2 className="text-lg font-semibold text-obsidian">
+                Материали ({sections.length}) · Позиции ({draft.positions.length})
+              </h2>
               {!readOnly && (
                 <div className="flex flex-wrap items-center gap-2">
                   <label className="flex items-center gap-2 text-xs text-gray-500">
@@ -496,54 +524,192 @@ export default function OrderEditor({ orderId, template, pricing, groups, onClos
                       ))}
                     </select>
                   </label>
-                  {(["windowsill", "countertop", "threshold"] as const).map((t) => (
-                    <button
-                      key={t}
-                      className={secondaryButton}
-                      onClick={() => setPositions((l) => [...l, blankPosition(l.length, t === "countertop" && defaultThickness < 3 ? 3 : defaultThickness, t)])}
-                    >
-                      + {t === "windowsill" ? "Перваз" : t === "countertop" ? "Плот" : "Праг"}
-                    </button>
-                  ))}
+                  <button className={primaryButton} onClick={addSection}>
+                    + Добави материал
+                  </button>
                 </div>
               )}
             </div>
             {shownErrors.positions && <ErrorBox>{shownErrors.positions}</ErrorBox>}
-            {draft.positions.length === 0 && (
-              <div className="rounded-xl border-2 border-dashed border-gray-200 p-8 text-center text-sm text-gray-500">Няма позиции.</div>
-            )}
-            {draft.positions.map((p, i) => (
-              <PositionEditor
-                key={p.id}
-                position={p}
-                index={i}
-                count={draft.positions.length}
-                pricing={draft.pricing}
-                stoneKey={draft.stoneKey}
-                quote={quote.positions.find((q) => q.positionId === p.id)}
-                currency={quote.currency}
-                errors={shownErrors.byPosition[p.id]}
-                readOnly={readOnly}
-                attachmentsCount={attachmentsFor(p.id)}
-                onChange={(np) => setPositions((l) => l.map((x) => (x.id === np.id ? np : x)))}
-                onDuplicate={() =>
-                  setPositions((l) => {
-                    const copy = { ...structuredClone(p), id: newId() };
-                    return [...l.slice(0, i + 1), copy, ...l.slice(i + 1)];
-                  })
-                }
-                onDelete={() => setPositions((l) => l.filter((x) => x.id !== p.id))}
-                onMove={(dir) =>
-                  setPositions((l) => {
-                    const j = i + dir;
-                    if (j < 0 || j >= l.length) return l;
-                    const copy = [...l];
-                    [copy[i], copy[j]] = [copy[j], copy[i]];
-                    return copy;
-                  })
-                }
-              />
-            ))}
+            {sections.map((s, si) => {
+              const group = groups.find((g) => g.key === s.material.groupKey);
+              const own = draft.positions.filter((p) => p.sectionId === s.id);
+              const sq = quote.sections.find((x) => x.sectionId === s.id);
+              return (
+                <div key={s.id} className={`${card} space-y-4 border-l-4 border-royalGold`}>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <h3 className={`${sectionTitle} !mb-0`}>
+                      Материал {si + 1}
+                      {s.material.label ? <span className="ml-2 normal-case tracking-normal text-obsidian">{s.material.label}</span> : null}
+                    </h3>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-500">
+                        {own.length} поз. · {formatNum(sq?.billableAreaM2 ?? 0, 3)} м² ·{" "}
+                        <strong className="text-obsidian">{formatMoney(sq?.total ?? 0, quote.currency)}</strong>
+                      </span>
+                      {!readOnly && sections.length > 1 && (
+                        <>
+                          <button className="rounded px-2 text-gray-500 hover:text-darkGold disabled:opacity-30" disabled={si === 0} onClick={() => moveSection(si, -1)} aria-label="Премести материала нагоре">
+                            ▲
+                          </button>
+                          <button
+                            className="rounded px-2 text-gray-500 hover:text-darkGold disabled:opacity-30"
+                            disabled={si === sections.length - 1}
+                            onClick={() => moveSection(si, 1)}
+                            aria-label="Премести материала надолу"
+                          >
+                            ▼
+                          </button>
+                          <button
+                            className="rounded px-2 text-gray-400 hover:text-red-700"
+                            onClick={() => (own.length ? setConfirm({ kind: "removeSection", id: s.id }) : removeSection(s.id))}
+                            aria-label="Премахни материала"
+                          >
+                            ✖
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <fieldset disabled={readOnly} className="grid gap-4 lg:grid-cols-2">
+                    <div className="space-y-3">
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <Field label="Група от каталога">
+                          <select
+                            className={inputClass}
+                            value={s.material.groupKey ?? ""}
+                            onChange={(e) => {
+                              const g = groups.find((x) => x.key === e.target.value);
+                              updateSection(s.id, {
+                                material: g ? { groupKey: g.key, groupId: g.id, label: g.name } : { label: "" },
+                                stoneKey: (g && stoneKeyForGroup(draft.pricing, g.id)) || s.stoneKey,
+                              });
+                            }}
+                          >
+                            <option value="">— по избор —</option>
+                            {groups.map((g) => (
+                              <option key={g.key} value={g.key}>
+                                {g.name}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                        <Field label="Материал">
+                          <select
+                            className={inputClass}
+                            value={s.material.materialId ?? ""}
+                            disabled={readOnly || !group}
+                            onChange={(e) => {
+                              const m = group?.materials.find((x) => String(x.id) === e.target.value);
+                              if (!group) return;
+                              updateSection(s.id, {
+                                material: {
+                                  groupKey: group.key,
+                                  groupId: group.id,
+                                  materialId: m?.id,
+                                  label: m ? `${group.name} ${m.displayName || m.name}` : group.name,
+                                },
+                              });
+                            }}
+                          >
+                            <option value="">{group ? "— изберете —" : "първо група"}</option>
+                            {group?.materials.map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.displayName || m.name}
+                              </option>
+                            ))}
+                          </select>
+                        </Field>
+                      </div>
+                      {s.material.materialId != null && group && <MaterialPreview group={group} materialId={s.material.materialId} />}
+                      {!group && (
+                        <Field label="Описание на материала" hint="ако камъкът не е в каталога">
+                          <input
+                            className={inputClass}
+                            value={s.material.label}
+                            maxLength={120}
+                            onChange={(e) => updateSection(s.id, { material: { label: e.target.value } })}
+                          />
+                        </Field>
+                      )}
+                    </div>
+                    <div className="grid content-start gap-3 sm:grid-cols-2">
+                      <Field label="Ценова категория *" error={shownErrors.sections?.[s.id]}>
+                        <select className={inputClass} value={s.stoneKey} onChange={(e) => updateSection(s.id, { stoneKey: e.target.value })}>
+                          {Object.entries(draft.pricing.stones).map(([k, st]) => (
+                            <option key={k} value={k}>
+                              {st.label} – {formatMoney(st.materialM2, draft.pricing.currency)}/м²
+                            </option>
+                          ))}
+                        </select>
+                      </Field>
+                      <Field label="Цена материал, €/м²" hint="празно = по ценоразпис">
+                        <NumInput
+                          value={s.materialPriceM2 ?? null}
+                          min={0}
+                          placeholder={String(draft.pricing.stones[s.stoneKey]?.materialM2 ?? "")}
+                          onChange={(n) => updateSection(s.id, { materialPriceM2: n && n > 0 ? n : null })}
+                        />
+                      </Field>
+                    </div>
+                  </fieldset>
+
+                  <div className="space-y-3 border-t border-gray-100 pt-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-sm font-semibold text-obsidian">Позиции от този материал ({own.length})</p>
+                      {!readOnly && (
+                        <div className="flex flex-wrap gap-2">
+                          {(["windowsill", "countertop", "threshold"] as const).map((t) => (
+                            <button key={t} className={secondaryButton} onClick={() => addPosition(s.id, t)}>
+                              + {t === "windowsill" ? "Перваз" : t === "countertop" ? "Плот" : "Праг"}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {own.length === 0 && (
+                      <div className="rounded-xl border-2 border-dashed border-gray-200 p-6 text-center text-sm text-gray-500">Няма позиции.</div>
+                    )}
+                    {own.map((p, i) => (
+                      <PositionEditor
+                        key={p.id}
+                        position={p}
+                        index={i}
+                        count={own.length}
+                        number={draft.positions.indexOf(p) + 1}
+                        pricing={draft.pricing}
+                        stoneKey={s.stoneKey}
+                        quote={quote.positions.find((q) => q.positionId === p.id)}
+                        currency={quote.currency}
+                        errors={shownErrors.byPosition[p.id]}
+                        readOnly={readOnly}
+                        attachmentsCount={attachmentsFor(p.id)}
+                        onChange={(np) => setPositions((l) => l.map((x) => (x.id === np.id ? np : x)))}
+                        onDuplicate={() =>
+                          setPositions((l) => {
+                            const at = l.findIndex((x) => x.id === p.id);
+                            const copy = { ...structuredClone(p), id: newId() };
+                            return [...l.slice(0, at + 1), copy, ...l.slice(at + 1)];
+                          })
+                        }
+                        onDelete={() => setPositions((l) => l.filter((x) => x.id !== p.id))}
+                        onMove={(dir) =>
+                          setPositions((l) => {
+                            const other = own[i + dir];
+                            if (!other) return l;
+                            const a = l.findIndex((x) => x.id === p.id);
+                            const b = l.findIndex((x) => x.id === other.id);
+                            const copy = [...l];
+                            [copy[a], copy[b]] = [copy[b], copy[a]];
+                            return copy;
+                          })
+                        }
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
 
           {/* Services, discount, notes */}
@@ -625,6 +791,55 @@ export default function OrderEditor({ orderId, template, pricing, groups, onClos
             </Field>
           </fieldset>
 
+          {/* Client document texts (per order) */}
+          <fieldset disabled={readOnly} className={`${card} space-y-4`}>
+            <div>
+              <h2 className={`${sectionTitle} mb-1`}>Документ за клиента</h2>
+              <p className="text-xs text-gray-500">Текстове само за тази поръчка. Празно поле = текстът по подразбиране.</p>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <Field label="Срок на изпълнение">
+                <input
+                  className={inputClass}
+                  value={doc.leadTime ?? ""}
+                  maxLength={200}
+                  placeholder={defaultLeadTime(draft.dueDate)}
+                  onChange={(e) => setDoc({ leadTime: e.target.value })}
+                />
+              </Field>
+              <Field label="Пояснение към срока">
+                <input
+                  className={inputClass}
+                  value={doc.leadTimeNote ?? ""}
+                  maxLength={300}
+                  placeholder={DEFAULT_LEAD_TIME_NOTE}
+                  onChange={(e) => setDoc({ leadTimeNote: e.target.value })}
+                />
+              </Field>
+            </div>
+            <Field label="Включено в цената (по един ред на точка)">
+              <textarea
+                className={inputClass}
+                rows={Math.max(4, (doc.included?.length ?? autoIncluded.length) + 1)}
+                value={(doc.included ?? []).join("\n")}
+                placeholder={autoIncluded.join("\n")}
+                onChange={(e) => setDoc({ included: e.target.value ? e.target.value.split("\n") : undefined })}
+              />
+            </Field>
+            {!readOnly && (
+              <div className="flex flex-wrap gap-2 text-xs">
+                <button type="button" className="font-semibold text-darkGold hover:underline" onClick={() => setDoc({ included: autoIncluded })}>
+                  Попълни автоматичния списък за редакция
+                </button>
+                {doc.included && (
+                  <button type="button" className="text-gray-500 hover:underline" onClick={() => setDoc({ included: undefined })}>
+                    Върни автоматичния списък
+                  </button>
+                )}
+              </div>
+            )}
+          </fieldset>
+
           {/* Attachments */}
           <div className={card}>
             <h2 className={sectionTitle}>Прикачени файлове {existing?.attachments.length ? `(${existing.attachments.length})` : ""}</h2>
@@ -666,27 +881,94 @@ export default function OrderEditor({ orderId, template, pricing, groups, onClos
               <h2 className="text-sm font-semibold uppercase tracking-[0.15em] text-darkGold">Калкулация</h2>
               <span className="text-xs text-gray-400">цени без ДДС</span>
             </div>
-            {pricingChanged && !readOnly && (
+            {customized && !readOnly && (
+              <div className="mb-4 rounded-lg bg-sky-50 p-3 text-xs text-sky-800">
+                Цените са коригирани ръчно за тази поръчка ({formatDateTime(draft.pricing.customizedAt!)}).{" "}
+                <button className="font-semibold underline" onClick={() => setConfirm({ kind: "reprice" })}>
+                  Върни текущия ценоразпис
+                </button>
+              </div>
+            )}
+            {!customized && pricingChanged && !readOnly && (
               <div className="mb-4 rounded-lg bg-amber-50 p-3 text-xs text-amber-800">
                 Поръчката е изчислена с ценоразпис от{" "}
                 {draft.pricing.updatedAt ? formatDateTime(draft.pricing.updatedAt) : "примерните цени"}.{" "}
-                <button
-                  className="font-semibold underline"
-                  onClick={() =>
-                    update({
-                      pricing,
-                      services: draft.services.map((s) => ({ ...s, unitPrice: pricing.services[s.key]?.price ?? s.unitPrice })),
-                    })
-                  }
-                >
+                <button className="font-semibold underline" onClick={repriceWithCurrent}>
                   Преизчисли с текущите цени
                 </button>
               </div>
             )}
-            <PriceBreakdown quote={quote} positions={draft.positions} />
+            <PriceBreakdown
+              quote={quote}
+              positions={draft.positions}
+              sections={sections.map((s, i) => ({ id: s.id, label: s.material.label || draft.pricing.stones[s.stoneKey]?.label || `Материал ${i + 1}` }))}
+            />
+            {!readOnly && (
+              <button className={`${secondaryButton} mt-4 w-full`} onClick={() => setPricingOpen(true)}>
+                Цени за тази поръчка…
+              </button>
+            )}
           </div>
         </aside>
       </div>
+
+      {pricingOpen && (
+        <OrderPricingModal
+          value={draft.pricing}
+          current={pricing}
+          groups={groups}
+          onClose={() => setPricingOpen(false)}
+          onApply={applyOrderPricing}
+        />
+      )}
+      {confirm?.kind === "reprice" && (
+        <Modal
+          title="Текущ ценоразпис"
+          onClose={() => setConfirm(null)}
+          footer={
+            <>
+              <button className={secondaryButton} onClick={() => setConfirm(null)}>
+                Отказ
+              </button>
+              <button
+                className={primaryButton}
+                onClick={() => {
+                  repriceWithCurrent();
+                  setConfirm(null);
+                }}
+              >
+                Приложи текущите цени
+              </button>
+            </>
+          }
+        >
+          <p className="text-sm text-gray-700">Ръчно зададените цени за тази поръчка ще бъдат заменени с текущия ценоразпис.</p>
+        </Modal>
+      )}
+      {confirm?.kind === "removeSection" && (
+        <Modal
+          title="Премахване на материал"
+          onClose={() => setConfirm(null)}
+          footer={
+            <>
+              <button className={secondaryButton} onClick={() => setConfirm(null)}>
+                Отказ
+              </button>
+              <button
+                className={dangerButton}
+                onClick={() => {
+                  removeSection(confirm.id);
+                  setConfirm(null);
+                }}
+              >
+                Премахни
+              </button>
+            </>
+          }
+        >
+          <p className="text-sm text-gray-700">Материалът и всички негови позиции ще бъдат премахнати от поръчката.</p>
+        </Modal>
+      )}
 
       {confirm?.kind === "status" && (
         <Modal
@@ -774,6 +1056,57 @@ export default function OrderEditor({ orderId, template, pricing, groups, onClos
         </Modal>
       )}
     </div>
+  );
+}
+
+function OrderPricingModal({
+  value,
+  current,
+  groups,
+  onClose,
+  onApply,
+}: {
+  value: PricingSettings;
+  current: PricingSettings;
+  groups: GroupEntry[];
+  onClose: () => void;
+  onApply: (p: PricingSettings) => void;
+}) {
+  const [p, setP] = useState<PricingSettings>(() => structuredClone(value));
+  const [error, setError] = useState("");
+  return (
+    <Modal
+      title="Цени за тази поръчка"
+      onClose={onClose}
+      footer={
+        <>
+          <button className="mr-auto text-sm text-gray-500 hover:underline" onClick={() => setP(structuredClone(current))}>
+            Зареди текущия ценоразпис
+          </button>
+          <button className={secondaryButton} onClick={onClose}>
+            Отказ
+          </button>
+          <button
+            className={primaryButton}
+            onClick={() => {
+              const err = invalidPricing(p);
+              if (err) return setError(err);
+              onApply(p);
+            }}
+          >
+            Приложи
+          </button>
+        </>
+      }
+    >
+      <div className="space-y-4">
+        <p className="text-sm text-gray-600">
+          Промените важат само за тази поръчка и не променят общия ценоразпис в „Настройки“.
+        </p>
+        {error && <ErrorBox>{error}</ErrorBox>}
+        <PricingFields value={p} onChange={setP} groups={groups} />
+      </div>
+    </Modal>
   );
 }
 

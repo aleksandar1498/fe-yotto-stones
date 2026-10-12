@@ -1,5 +1,5 @@
 // Shared content for the printable order documents (client offer/contract and internal traceability sheet).
-import { PRODUCT_TYPES, SIDES, type Position, type PositionQuote, type PricingSettings } from "./pricing";
+import { PRODUCT_TYPES, SIDES, type OrderQuote, type Position, type PositionQuote, type PricingSettings } from "./pricing";
 import type { Order, OrderStatus } from "./ordersData";
 
 export type Company = {
@@ -9,6 +9,16 @@ export type Company = {
   email: string;
   website: string;
   address: string;
+  // Legal entity & bank details printed on the client document.
+  legalName: string;
+  legalAddress: string;
+  eik: string;
+  vatNumber: string;
+  mol: string;
+  paymentMethod: string;
+  bankName: string;
+  iban: string;
+  bic: string;
 };
 
 export type TermScope = "all" | "offer" | "contract";
@@ -45,6 +55,15 @@ export const DEFAULT_DOCUMENT_SETTINGS: DocumentSettings = {
     email: "yottostones@gmail.com",
     website: "www.yottostones-bg.com",
     address: "ул. „Владимир Зограф“ 121, 1229 София, България",
+    legalName: "Ц-М ЙОТТО ЕООД",
+    legalAddress: "ул. „Владимир Зограф“ №121, София, България",
+    eik: "207239186",
+    vatNumber: "BG207239186",
+    mol: "Силвия Александрова",
+    paymentMethod: "по банков път",
+    bankName: "Юробанк България АД",
+    iban: "BG64BPBI79421027443401",
+    bic: "BPBIBGSF",
   },
   offerValidityDays: 14,
   advancePct: 50,
@@ -85,6 +104,15 @@ export function withDocumentDefaults(stored: unknown): DocumentSettings {
       email: str(c.email, d.company.email),
       website: str(c.website, d.company.website),
       address: str(c.address, d.company.address),
+      legalName: str(c.legalName, d.company.legalName),
+      legalAddress: str(c.legalAddress, d.company.legalAddress),
+      eik: str(c.eik, d.company.eik),
+      vatNumber: str(c.vatNumber, d.company.vatNumber),
+      mol: str(c.mol, d.company.mol),
+      paymentMethod: str(c.paymentMethod, d.company.paymentMethod),
+      bankName: str(c.bankName, d.company.bankName),
+      iban: str(c.iban, d.company.iban),
+      bic: str(c.bic, d.company.bic),
     },
     offerValidityDays: num(s.offerValidityDays, d.offerValidityDays),
     advancePct: num(s.advancePct, d.advancePct),
@@ -141,15 +169,31 @@ export function positionSpecs(p: Position, pricing: PricingSettings): string[] {
 }
 
 // "What's included" list for the client, derived from what is actually priced in the order.
-export function includedWork(order: Order, quotes: PositionQuote[]): string[] {
+type IncludedSource = Pick<Order, "material"> & { sections?: Order["sections"] };
+
+export function includedWork(order: IncludedSource, quotes: PositionQuote[]): string[] {
   const keys = new Set(quotes.flatMap((q) => q.lines.map((l) => l.key.split(":")[0])));
-  const out = [`Материал ${order.material.label || ""}`.trim() + " – подбор и технологичен разкрой", "Прецизно рязане по размер"];
+  const labels = (order.sections?.length ? order.sections.map((s) => s.material.label) : [order.material.label]).filter(Boolean);
+  const out = [
+    `${labels.length > 1 ? "Материали" : "Материал"} ${labels.join(", ")}`.trim() + " – подбор и технологичен разкрой",
+    "Прецизно рязане по размер",
+  ];
   if (keys.has("edge")) out.push("Обработка и полиране на видимите чела по избран профил");
   if (keys.has("drip")) out.push("Фрезоване на водооткапващ канал");
   if (keys.has("cutout")) out.push("Изрязване на отвори (мивка, котлон, смесител и др.)");
   if (keys.has("seal_m2") || keys.has("seal_edge")) out.push("Импрегниране (защитна запечатка)");
   out.push("Почистване, проверка на качеството и опаковане");
   return out;
+}
+
+// Generated client-document texts; the editor shows them as placeholders and per-order overrides replace them.
+export const defaultLeadTime = (dueDate?: string) =>
+  dueDate ? `Готовност до ${formatLongDate(dueDate)}` : "По договаряне след окончателно замерване";
+export const DEFAULT_LEAD_TIME_NOTE = "Срокът тече от окончателното замерване и получаването на аванса.";
+
+export function includedList(order: IncludedSource & { doc?: Order["doc"] }, quote: Pick<OrderQuote, "positions" | "serviceLines">) {
+  if (order.doc?.included?.length) return order.doc.included;
+  return [...includedWork(order, quote.positions), ...quote.serviceLines.map((l) => l.label)];
 }
 
 export const SIDE_LEGEND = SIDES.map((s) => `${s.short} – ${s.label.toLowerCase()}`).join(" · ");

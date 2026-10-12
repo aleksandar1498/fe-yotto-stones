@@ -37,29 +37,43 @@ export default function PrintOrder() {
   const type: DocType = search.get("type") === "internal" ? "internal" : "client";
   const [order, setOrder] = useState<Order | null | undefined>(undefined);
   const [error, setError] = useState<string | null>(null);
-  const [materialImage, setMaterialImage] = useState<string>();
+  const [materialImages, setMaterialImages] = useState<Record<string, string>>({});
   const [settings, setSettings] = useState<DocumentSettings>();
 
   useEffect(() => subscribeOrder(id, setOrder, (e) => setError(e.message)), [id]);
   useEffect(() => subscribeDocumentSettings(setSettings, (e) => setError(e.message)), []);
 
-  const groupKey = order?.material.groupKey;
-  const materialId = order?.material.materialId;
+  // Stable key of the catalogue materials referenced by the order, so images are fetched only when they change.
+  const imageRefs = (order?.sections ?? [])
+    .filter((s) => s.material.groupKey && s.material.materialId != null)
+    .map((s) => `${s.id}|${s.material.groupKey}|${s.material.materialId}`)
+    .join(",");
   useEffect(() => {
-    if (!groupKey || materialId == null) return;
+    if (!imageRefs) return;
     let cancelled = false;
-    get(ref(db, `group_materials/${groupKey}/materials`))
-      .then((snap) => {
-        const m = toList<Material>(snap.val()).find((x) => x.id === materialId);
-        if (!cancelled) setMaterialImage(m?.imageUrl);
-        return m;
-      })
-      .catch(() => undefined); // the image is decorative; the document is complete without it
+    const refs = imageRefs.split(",").map((r) => r.split("|"));
+    const groupKeys = [...new Set(refs.map(([, g]) => g))];
+    Promise.all(
+      groupKeys.map((g) =>
+        get(ref(db, `group_materials/${g}/materials`))
+          .then((snap) => [g, toList<Material>(snap.val())] as const)
+          .catch(() => [g, [] as Material[]] as const) // images are decorative; the document is complete without them
+      )
+    ).then((lists) => {
+      if (cancelled) return undefined;
+      const byGroup = new Map(lists);
+      const out: Record<string, string> = {};
+      for (const [sid, g, mid] of refs) {
+        const url = byGroup.get(g)?.find((m) => String(m.id) === mid)?.imageUrl;
+        if (url) out[sid] = url;
+      }
+      setMaterialImages(out);
+      return out;
+    });
     return () => {
       cancelled = true;
     };
-  }, [groupKey, materialId]);
-
+  }, [imageRefs]);
   const quote = useMemo(() => (order ? quoteFor(order) : null), [order]);
 
   useEffect(() => {
@@ -121,7 +135,7 @@ export default function PrintOrder() {
             {type === "internal" ? (
               <InternalDocument order={order} quote={quote} settings={settings} generatedBy={user?.email ?? undefined} />
             ) : (
-              <ClientDocument order={order} quote={quote} settings={settings} materialImage={materialImage} />
+              <ClientDocument order={order} quote={quote} settings={settings} materialImages={materialImages} />
             )}
           </div>
         )}
