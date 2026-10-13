@@ -6,12 +6,16 @@ import { formatMoney, type PricingSettings } from "@/lib/orders/pricing";
 import { ErrorBox, Spinner, inputClass } from "../ui";
 import { StatusBadge, formatDate, orderNo } from "./common";
 
-type Props = { pricing: PricingSettings; onOpen: (id: string) => void };
+type Props = {
+  pricing: PricingSettings;
+  onOpen: (id: string) => void;
+  selection?: { selected: Set<string>; onToggle: (id: string) => void };
+};
 
 const startOfDay = (d: string) => new Date(`${d}T00:00:00`).getTime();
 const endOfDay = (d: string) => new Date(`${d}T23:59:59.999`).getTime();
 
-export default function ActiveOrders({ pricing, onOpen }: Props) {
+export default function ActiveOrders({ pricing, onOpen, selection }: Props) {
   const [orders, setOrders] = useState<OrderSummary[] | null>(null);
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
@@ -106,7 +110,14 @@ export default function ActiveOrders({ pricing, onOpen }: Props) {
           {orders.length === 0 ? "Няма текущи поръчки. Създайте първата с „+ Нова поръчка“." : "Няма поръчки по тези критерии."}
         </div>
       ) : (
-        <OrderList orders={filtered} onOpen={onOpen} stoneLabel={stoneLabel} dateOf={(o) => o.createdAt} dateLabel="Създадена" />
+        <OrderList
+          orders={filtered}
+          onOpen={onOpen}
+          stoneLabel={stoneLabel}
+          dateOf={(o) => o.createdAt}
+          dateLabel="Създадена"
+          selection={selection}
+        />
       )}
     </div>
   );
@@ -118,19 +129,40 @@ export function OrderList({
   stoneLabel,
   dateOf,
   dateLabel,
+  selection,
 }: {
   orders: OrderSummary[];
   onOpen: (id: string) => void;
   stoneLabel: (k: string) => string;
   dateOf: (o: OrderSummary) => number | undefined;
   dateLabel: string;
+  selection?: { selected: Set<string>; onToggle: (id: string) => void };
 }) {
+  const allSelected = !!selection && orders.length > 0 && orders.every((o) => selection.selected.has(o.id));
+  const toggleAll = () => {
+    if (!selection) return;
+    orders.forEach((o) => {
+      const has = selection.selected.has(o.id);
+      if (allSelected ? has : !has) selection.onToggle(o.id);
+    });
+  };
+
   return (
     <>
       {/* Cards on mobile */}
       <ul className="space-y-3 md:hidden">
         {orders.map((o) => (
-          <li key={o.id}>
+          <li key={o.id} className="flex items-stretch gap-2">
+            {selection && (
+              <label className="flex items-center rounded-xl bg-white px-3 shadow-sm" onClick={(e) => e.stopPropagation()}>
+                <input
+                  type="checkbox"
+                  checked={selection.selected.has(o.id)}
+                  onChange={() => selection.onToggle(o.id)}
+                  aria-label={`Избери поръчка ${orderNo(o.number)}`}
+                />
+              </label>
+            )}
             <button onClick={() => onOpen(o.id)} className="w-full rounded-xl bg-white p-4 text-left shadow-sm transition hover:shadow-md">
               <div className="flex items-center justify-between gap-2">
                 <span className="font-mono text-xs text-gray-500">{orderNo(o.number)}</span>
@@ -151,6 +183,16 @@ export function OrderList({
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-left text-xs uppercase tracking-wider text-gray-500">
             <tr>
+              {selection && (
+                <th className="w-10 px-4 py-3">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={toggleAll}
+                    aria-label="Избери всички показани поръчки"
+                  />
+                </th>
+              )}
               <th className="px-4 py-3">№</th>
               <th className="px-4 py-3">Клиент</th>
               <th className="px-4 py-3">Материал</th>
@@ -163,6 +205,16 @@ export function OrderList({
           <tbody className="divide-y divide-gray-100">
             {orders.map((o) => (
               <tr key={o.id} onClick={() => onOpen(o.id)} className="cursor-pointer transition hover:bg-royalGold/10">
+                {selection && (
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selection.selected.has(o.id)}
+                      onChange={() => selection.onToggle(o.id)}
+                      aria-label={`Избери поръчка ${orderNo(o.number)}`}
+                    />
+                  </td>
+                )}
                 <td className="px-4 py-3 font-mono text-xs text-gray-500">{orderNo(o.number)}</td>
                 <td className="px-4 py-3">
                   <button className="text-left font-semibold text-obsidian hover:text-darkGold"                   onClick={(e) => {

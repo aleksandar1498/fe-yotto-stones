@@ -18,6 +18,7 @@ type FormState = {
   seoDescription: string;
   galleryImageUrls: string;
   trending: boolean;
+  grain: "none" | "directional";
 };
 
 function initialState(group: GroupEntry, m?: Material): FormState {
@@ -33,6 +34,7 @@ function initialState(group: GroupEntry, m?: Material): FormState {
     seoDescription: m?.seoDescription ?? "",
     galleryImageUrls: (m?.galleryImageUrls ?? []).join("\n"),
     trending: !!m?.trending,
+    grain: m?.grain === "directional" ? "directional" : "none",
   };
 }
 
@@ -88,6 +90,7 @@ export default function MaterialForm({
         seoDescription: form.seoDescription.trim(),
         galleryImageUrls: form.galleryImageUrls.split("\n").map((s) => s.trim()).filter(Boolean),
         trending: form.trending || undefined,
+        grain: form.grain === "directional" ? "directional" : undefined,
       });
       onSaved(isNew ? `Материал #${id} е добавен.` : `Материал #${id} е запазен.`);
     } catch (err) {
@@ -138,6 +141,12 @@ export default function MaterialForm({
           </Field>
           <Field label="Размери">
             <input className={inputClass} value={form.sizes} onChange={(e) => set("sizes", e.target.value)} />
+          </Field>
+          <Field label="Текстура (за разкрой)" hint="Дирекционна = детайлите не се завъртат при разкроя">
+            <select className={inputClass} value={form.grain} onChange={(e) => set("grain", e.target.value as FormState["grain"])}>
+              <option value="none">Недирекционна</option>
+              <option value="directional">Дирекционна (жилките се спазват)</option>
+            </select>
           </Field>
           <label className="flex items-center gap-3 self-end pb-2 text-sm font-medium text-obsidian">
             <input

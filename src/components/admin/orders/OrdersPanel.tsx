@@ -14,6 +14,7 @@ import DocumentSettingsForm from "./DocumentSettingsForm";
 import OrderHistory from "./OrderHistory";
 import OrderEditor from "./OrderEditor";
 import PricingSettingsForm from "./PricingSettingsForm";
+import CutlistPanel from "./CutlistPanel";
 
 export default function OrdersPanel() {
   const params = useSearchParams();
@@ -31,6 +32,7 @@ export default function OrdersPanel() {
   const [showDocs, setShowDocs] = useState(false);
   const [docSettings, setDocSettings] = useState<DocumentSettings | null>(null);
   const [template, setTemplate] = useState<OrderDraft | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   useEffect(() => subscribeDocumentSettings(setDocSettings, (e) => setError(e.message)), []);
 
@@ -72,10 +74,50 @@ export default function OrdersPanel() {
 
   const clearToast = useCallback(() => setToast(""), []);
 
+  const toggleSelected = useCallback((id: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const startCutlist = useCallback(() => {
+    const sp = new URLSearchParams(params.toString());
+    sp.set("tab", "orders");
+    sp.delete("view");
+    sp.delete("order");
+    sp.set("cutlist", "1");
+    sp.set("orders", [...selected].join(","));
+    router.push(`${pathname}?${sp.toString()}`);
+  }, [params, pathname, router, selected]);
+
   if (error) return <ErrorBox>Грешка при зареждане: {error}</ErrorBox>;
   if (!pricing || !groups) return <Spinner label="Зареждане на поръчките…" />;
 
-  const content = orderId ? (
+  const cutlistOrderIds = (params.get("orders") ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const showCutlist = params.get("cutlist") === "1" && cutlistOrderIds.length > 0;
+
+  const closeCutlist = () => {
+    const sp = new URLSearchParams(params.toString());
+    sp.delete("cutlist");
+    sp.delete("orders");
+    router.push(`${pathname}?${sp.toString()}`);
+  };
+
+  const content = showCutlist ? (
+    <CutlistPanel
+      orderIds={cutlistOrderIds}
+      pricing={pricing}
+      groups={groups}
+      onClose={closeCutlist}
+      onToast={setToast}
+    />
+  ) : orderId ? (
     <OrderEditor
       key={orderId + (template ? ":tpl" : "")}
       orderId={orderId === "new" ? null : orderId}
@@ -123,6 +165,11 @@ export default function OrdersPanel() {
           <button className={secondaryButton} onClick={() => setShowDocs(true)} disabled={!docSettings}>
             ⚙ Документи и условия
           </button>
+          {selected.size > 0 && (
+            <button className={primaryButton} onClick={startCutlist}>
+              ✂ Създай разкрой ({selected.size})
+            </button>
+          )}
           <button
             className={primaryButton}
             onClick={() => {
@@ -145,7 +192,11 @@ export default function OrdersPanel() {
       {view === "history" ? (
         <OrderHistory pricing={pricing} onOpen={(id) => navigate({ order: id })} />
       ) : (
-        <ActiveOrders pricing={pricing} onOpen={(id) => navigate({ order: id })} />
+        <ActiveOrders
+          pricing={pricing}
+          onOpen={(id) => navigate({ order: id })}
+          selection={{ selected, onToggle: toggleSelected }}
+        />
       )}
     </>
   );

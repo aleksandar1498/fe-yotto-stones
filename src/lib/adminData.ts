@@ -19,6 +19,8 @@ export type Material = {
   sourceImageUrl?: string;
   galleryImageUrls?: string[];
   trending?: boolean;
+  /** Grain policy for cutting: directional = pieces must keep their orientation. */
+  grain?: "none" | "directional";
 };
 
 export type MaterialGroup = {
