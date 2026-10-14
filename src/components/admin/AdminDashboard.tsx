@@ -3,20 +3,23 @@
 import { useEffect, useMemo, useState } from "react";
 import { onValue, ref } from "firebase/database";
 import { db } from "@/lib/firebase";
-import { deleteMaterial, downloadBackup, toGroupEntries, type GroupEntry, type Material } from "@/lib/adminData";
+import { deleteMaterial, downloadBackup, slabStockKey, slabStockTotal, subscribeSlabStock, toGroupEntries, type GroupEntry, type Material, type SlabStock } from "@/lib/adminData";
 import { fallbackToLocal, materialDisplayName, materialImageSrc } from "@/lib/materialImage";
 import { materialPriceM2 } from "@/lib/orders/publicQuote";
 import MaterialForm from "./MaterialForm";
 import GroupForm from "./GroupForm";
+import SlabStockForm from "./SlabStockForm";
 import { Modal, dangerButton, inputClass, primaryButton, secondaryButton } from "./ui";
 
 type Dialog =
   | { kind: "material"; groupKey: string; material?: Material }
   | { kind: "group"; groupKey: string }
+  | { kind: "stock"; groupKey: string; material: Material }
   | { kind: "delete"; groupKey: string; material: Material };
 
 export default function AdminDashboard() {
   const [groups, setGroups] = useState<GroupEntry[] | null>(null);
+  const [stock, setStock] = useState<Record<string, SlabStock>>({});
   const [loadError, setLoadError] = useState("");
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -33,6 +36,8 @@ export default function AdminDashboard() {
       ),
     []
   );
+
+  useEffect(() => subscribeSlabStock(setStock, (e) => setLoadError(e.message)), []);
 
   useEffect(() => {
     if (!toast) return;
@@ -163,6 +168,15 @@ export default function AdminDashboard() {
                       <h3 className="font-semibold text-obsidian">{materialDisplayName(m)}</h3>
                       <p className="text-xs text-gray-500">{[m.origin, m.surface].filter(Boolean).join(" · ") || m.name}</p>
                       <p className="mt-1 text-xs text-gray-400">{materialPriceM2(m.price) != null ? `Цена: ${materialPriceM2(m.price)} €/м²` : "Цена: по вид камък"}</p>
+                      <p className="mt-1 text-xs text-gray-400">
+                        Плочи на склад: <strong className="text-gray-600">{slabStockTotal(stock[slabStockKey(group.key, m.id)]?.slabs)}</strong>
+                      </p>
+                      <button
+                        className="mt-2 w-full rounded-md border border-gray-300 py-1.5 text-xs font-semibold text-gray-700 transition hover:border-darkGold hover:text-darkGold"
+                        onClick={() => setDialog({ kind: "stock", groupKey: group.key, material: m })}
+                      >
+                        Наличност на плочите
+                      </button>
                       <div className="mt-auto flex gap-2 pt-3">
                         <button
                           className="flex-1 rounded-md bg-darkGold py-1.5 text-xs font-semibold text-white hover:bg-darkGoldHover"
@@ -205,6 +219,15 @@ export default function AdminDashboard() {
       )}
       {dialog?.kind === "group" && dialogGroup && (
         <GroupForm group={dialogGroup} onClose={() => setDialog(null)} onSaved={closeWith} />
+      )}
+      {dialog?.kind === "stock" && dialogGroup && (
+        <SlabStockForm
+          group={dialogGroup}
+          material={dialog.material}
+          initial={stock[slabStockKey(dialog.groupKey, dialog.material.id)]?.slabs}
+          onClose={() => setDialog(null)}
+          onSaved={closeWith}
+        />
       )}
       {dialog?.kind === "delete" && (
         <Modal

@@ -1,4 +1,4 @@
-import { ref, update, runTransaction, get } from "firebase/database";
+import { get, onValue, ref, runTransaction, update, type Unsubscribe } from "firebase/database";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "firebase/storage";
 import { db, storage } from "@/lib/firebase";
 
@@ -38,6 +38,36 @@ export type MaterialGroup = {
 export type GroupEntry = MaterialGroup & { key: string };
 
 export type GroupDetails = Omit<MaterialGroup, "id" | "materials">;
+
+// ---------- slab availability (stock) ----------
+//
+// Kept out of group_materials on purpose: the catalogue is public-read and cached,
+// while stock changes often (on every confirmed cutlist) and must stay admin-only.
+// One entry = a lot of identical slabs; consumption decrements qty, and reusable
+// offcuts can simply be added later as smaller lots.
+export type SlabLot = {
+  id: number;
+  lengthCm: number;
+  widthCm: number;
+  thicknessCm?: number | null;
+  qty: number;
+  note?: string;
+};
+
+export type SlabStock = {
+  groupKey: string;
+  groupId?: number;
+  materialId: number;
+  materialName?: string;
+  updatedAt?: number;
+  slabs: SlabLot[];
+};
+
+/** Stable identity of a material's stock — matches the order MaterialRef (groupKey + materialId). */
+export const slabStockKey = (groupKey: string, materialId: number) => `${groupKey}:${materialId}`;
+
+export const slabStockTotal = (slabs?: SlabLot[] | null): number =>
+  (slabs ?? []).reduce((a, s) => a + (Number(s.qty) || 0), 0);
 
 export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
@@ -104,6 +134,72 @@ export async function deleteMaterial(groupKey: string, materialId: number) {
   await runTransaction(ref(db, materialsPath(groupKey)), (current) =>
     current === null ? current : toList<Material>(current).filter((m) => m.id !== materialId)
   );
+  // Keep the stock's lifecycle tied to the material: ids are reused (max+1), so a
+  // deleted material's slabs must go too, otherwise a future material could inherit them.
+  await update(ref(db), { [slabStockPath(groupKey, materialId)]: null });
+}
+
+// ---------- slab stock read/write ----------
+
+const slabStockPath = (groupKey: string, materialId: number) => `slab_stock/${slabStockKey(groupKey, materialId)}`;
+
+// RTDB rejects undefined values, so drop them recursively before writing.
+function pruneDeep<T>(value: T): T {
+  if (Array.isArray(value)) return value.map(pruneDeep) as T;
+  if (!value || typeof value !== "object") return value;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) if (v !== undefined) out[k] = pruneDeep(v);
+  return out as T;
+}
+
+export function subscribeSlabStock(cb: (map: Record<string, SlabStock>) => void, onError: (e: Error) => void): Unsubscribe {
+  return onValue(
+    ref(db, "slab_stock"),
+    (snap) => {
+      const raw = snap.val();
+      const out: Record<string, SlabStock> = {};
+      if (raw && typeof raw === "object") {
+        for (const [key, value] of Object.entries(raw as Record<string, SlabStock>)) {
+          out[key] = { ...(value as SlabStock), slabs: toList<SlabLot>((value as SlabStock).slabs) };
+        }
+      }
+      cb(out);
+    },
+    onError
+  );
+}
+
+/** Replaces a material's whole slab list. Rows without dimensions or quantity are dropped. */
+export async function saveSlabStock(
+  group: { key: string; id: number },
+  material: Pick<Material, "id" | "name" | "displayName">,
+  slabs: SlabLot[]
+): Promise<void> {
+  const cleaned = (slabs ?? [])
+    .map((s, i) => ({
+      id: i + 1,
+      lengthCm: Number(s.lengthCm) || 0,
+      widthCm: Number(s.widthCm) || 0,
+      thicknessCm: Number(s.thicknessCm) > 0 ? Number(s.thicknessCm) : undefined,
+      qty: Math.max(0, Math.floor(Number(s.qty) || 0)),
+      note: s.note?.trim() || undefined,
+    }))
+    .filter((s) => s.lengthCm > 0 && s.widthCm > 0 && s.qty > 0);
+
+  await update(ref(db), {
+    [slabStockPath(group.key, material.id)]: pruneDeep({
+      groupKey: group.key,
+      groupId: group.id,
+      materialId: material.id,
+      materialName: material.displayName || material.name,
+      updatedAt: Date.now(),
+      slabs: cleaned,
+    }),
+  });
+}
+
+export async function deleteSlabStock(groupKey: string, materialId: number): Promise<void> {
+  await update(ref(db), { [slabStockPath(groupKey, materialId)]: null });
 }
 
 export async function saveGroupDetails(groupKey: string, details: GroupDetails) {
