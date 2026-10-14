@@ -670,42 +670,62 @@ export default function OrderEditor({ orderId, template, pricing, groups, onClos
                     {own.length === 0 && (
                       <div className="rounded-xl border-2 border-dashed border-gray-200 p-6 text-center text-sm text-gray-500">Няма позиции.</div>
                     )}
-                    {own.map((p, i) => (
-                      <PositionEditor
-                        key={p.id}
-                        position={p}
-                        index={i}
-                        count={own.length}
-                        number={draft.positions.indexOf(p) + 1}
-                        pricing={draft.pricing}
-                        stoneKey={s.stoneKey}
-                        quote={quote.positions.find((q) => q.positionId === p.id)}
-                        currency={quote.currency}
-                        errors={shownErrors.byPosition[p.id]}
-                        readOnly={readOnly}
-                        attachmentsCount={attachmentsFor(p.id)}
-                        onChange={(np) => setPositions((l) => l.map((x) => (x.id === np.id ? np : x)))}
-                        onDuplicate={() =>
-                          setPositions((l) => {
-                            const at = l.findIndex((x) => x.id === p.id);
-                            const copy = { ...structuredClone(p), id: newId() };
-                            return [...l.slice(0, at + 1), copy, ...l.slice(at + 1)];
-                          })
-                        }
-                        onDelete={() => setPositions((l) => l.filter((x) => x.id !== p.id))}
-                        onMove={(dir) =>
-                          setPositions((l) => {
-                            const other = own[i + dir];
-                            if (!other) return l;
-                            const a = l.findIndex((x) => x.id === p.id);
-                            const b = l.findIndex((x) => x.id === other.id);
-                            const copy = [...l];
-                            [copy[a], copy[b]] = [copy[b], copy[a]];
-                            return copy;
-                          })
-                        }
-                      />
-                    ))}
+                    {own.length > 0 && (
+                      <div className="overflow-x-auto rounded-xl border border-gray-200 bg-white shadow-sm">
+                        <table className="w-full min-w-[880px] border-collapse text-sm">
+                          <thead className="bg-gray-50 text-left text-xs uppercase tracking-wider text-gray-500">
+                            <tr>
+                              <th className="w-10 py-2 pl-2 pr-2">№</th>
+                              <th className="py-2 pr-2">Тип</th>
+                              <th className="py-2 pr-2">Означение</th>
+                              <th className="py-2 pr-2">Дължина</th>
+                              <th className="py-2 pr-2">Ширина</th>
+                              <th className="py-2 pr-2">Брой</th>
+                              <th className="py-2 pr-2 text-right">Сума</th>
+                              <th className="py-2 pr-2 text-right">Действия</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {own.map((p, i) => (
+                              <PositionEditor
+                                key={p.id}
+                                position={p}
+                                index={i}
+                                count={own.length}
+                                number={draft.positions.indexOf(p) + 1}
+                                pricing={draft.pricing}
+                                stoneKey={s.stoneKey}
+                                quote={quote.positions.find((q) => q.positionId === p.id)}
+                                currency={quote.currency}
+                                errors={shownErrors.byPosition[p.id]}
+                                readOnly={readOnly}
+                                attachmentsCount={attachmentsFor(p.id)}
+                                onChange={(np) => setPositions((l) => l.map((x) => (x.id === np.id ? np : x)))}
+                                onDuplicate={() =>
+                                  setPositions((l) => {
+                                    const at = l.findIndex((x) => x.id === p.id);
+                                    const copy = { ...structuredClone(p), id: newId() };
+                                    return [...l.slice(0, at + 1), copy, ...l.slice(at + 1)];
+                                  })
+                                }
+                                onDelete={() => setPositions((l) => l.filter((x) => x.id !== p.id))}
+                                onMove={(dir) =>
+                                  setPositions((l) => {
+                                    const other = own[i + dir];
+                                    if (!other) return l;
+                                    const a = l.findIndex((x) => x.id === p.id);
+                                    const b = l.findIndex((x) => x.id === other.id);
+                                    const copy = [...l];
+                                    [copy[a], copy[b]] = [copy[b], copy[a]];
+                                    return copy;
+                                  })
+                                }
+                              />
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
                   </div>
                 </div>
               );
