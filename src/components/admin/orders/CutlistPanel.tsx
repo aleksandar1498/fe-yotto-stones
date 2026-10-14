@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { subscribeOrder, type Order } from "@/lib/orders/ordersData";
 import { formatNum, type PricingSettings } from "@/lib/orders/pricing";
-import type { GroupEntry } from "@/lib/adminData";
+import { subscribeSlabStock, type GroupEntry, type SlabLot, type SlabStock } from "@/lib/adminData";
 import { groupPiecesByMaterial, materialGrainResolver, type CutlistPieceGroup } from "@/lib/cutlist/build";
 import { optimize } from "@/lib/cutlist/optimizer";
 import type { CuttingMode, GrainAxis, OptimizeConfig, OptimizeResult } from "@/lib/cutlist/types";
@@ -24,8 +24,6 @@ type Props = {
 };
 
 type Config = {
-  slabLengthCm: number | null;
-  slabWidthCm: number | null;
   kerfMm: number | null;
   respectGrain: boolean;
   allowRotation: boolean;
@@ -34,8 +32,6 @@ type Config = {
 };
 
 const DEFAULT_CONFIG: Config = {
-  slabLengthCm: 290,
-  slabWidthCm: 190,
   kerfMm: 4,
   respectGrain: false,
   allowRotation: true,
@@ -43,7 +39,12 @@ const DEFAULT_CONFIG: Config = {
   grainAxis: "length",
 };
 
+const DEFAULT_SLAB_CM = { lengthCm: 290, widthCm: 190 };
+
 const groupKeyOf = (g: CutlistPieceGroup) => `${g.materialId}#${g.thicknessMm}`;
+// build.ts keys a material as "mat:<groupKey>:<materialId>", which is exactly the
+// slab_stock key under the "mat:" prefix.
+const stockKeyOf = (g: CutlistPieceGroup) => (g.materialId.startsWith("mat:") ? g.materialId.slice(4) : undefined);
 
 export default function CutlistPanel({ orderIds, pricing, groups, onClose, onToast }: Props) {
   const { user } = useAdminAuth();
@@ -52,6 +53,9 @@ export default function CutlistPanel({ orderIds, pricing, groups, onClose, onToa
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [error, setError] = useState("");
   const [config, setConfig] = useState<Config>(DEFAULT_CONFIG);
+  const [stock, setStock] = useState<Record<string, SlabStock>>({});
+  const [slabChoice, setSlabChoice] = useState<Record<string, string>>({});
+  const [customSlab, setCustomSlab] = useState<Record<string, { lengthCm: number | null; widthCm: number | null }>>({});
   const [results, setResults] = useState<Record<string, OptimizeResult> | null>(null);
   const [activeMaterial, setActiveMaterial] = useState("");
   const [activeSlab, setActiveSlab] = useState(0);
@@ -77,6 +81,7 @@ export default function CutlistPanel({ orderIds, pricing, groups, onClose, onToa
   }, [orderKey]);
 
   useEffect(() => subscribeCutlists(setPast, () => setPast([])), []);
+  useEffect(() => subscribeSlabStock(setStock, () => setStock({})), []);
 
   const pieceGroups = useMemo(() => {
     if (!orders) return [];
@@ -99,24 +104,63 @@ export default function CutlistPanel({ orderIds, pricing, groups, onClose, onToa
 
   const set = <K extends keyof Config>(key: K, value: Config[K]) => setConfig((c) => ({ ...c, [key]: value }));
 
+  // Available slab sizes for a material, grouped by dimensions (from slab_stock).
+  const slabOptions = useCallback(
+    (g: CutlistPieceGroup) => {
+      const key = stockKeyOf(g);
+      const lots: SlabLot[] = (key && stock[key]?.slabs) || [];
+      const map = new Map<string, { id: string; lengthCm: number; widthCm: number; thicknessCm: number | null; qty: number }>();
+      for (const l of lots) {
+        const id = `${l.lengthCm}x${l.widthCm}x${l.thicknessCm ?? ""}`;
+        const cur = map.get(id);
+        if (cur) cur.qty += Number(l.qty) || 0;
+        else
+          map.set(id, {
+            id,
+            lengthCm: Number(l.lengthCm) || 0,
+            widthCm: Number(l.widthCm) || 0,
+            thicknessCm: l.thicknessCm ?? null,
+            qty: Number(l.qty) || 0,
+          });
+      }
+      return [...map.values()].sort((a, b) => b.qty - a.qty || b.lengthCm * b.widthCm - a.lengthCm * a.widthCm);
+    },
+    [stock]
+  );
+
+  const choiceOf = (g: CutlistPieceGroup, options = slabOptions(g)) =>
+    slabChoice[groupKeyOf(g)] ?? (options.length ? options[0].id : "custom");
+
+  // Chosen slab for a material: an inventory lot (with its availability) or a custom size.
+  const slabFor = useCallback(
+    (g: CutlistPieceGroup): { lengthCm: number; widthCm: number; qty: number | null } => {
+      const options = slabOptions(g);
+      const choice = slabChoice[groupKeyOf(g)] ?? (options.length ? options[0].id : "custom");
+      if (choice !== "custom") {
+        const opt = options.find((o) => o.id === choice);
+        if (opt) return { lengthCm: opt.lengthCm, widthCm: opt.widthCm, qty: opt.qty };
+      }
+      const custom = customSlab[groupKeyOf(g)] ?? DEFAULT_SLAB_CM;
+      return { lengthCm: custom.lengthCm ?? DEFAULT_SLAB_CM.lengthCm, widthCm: custom.widthCm ?? DEFAULT_SLAB_CM.widthCm, qty: null };
+    },
+    [slabOptions, slabChoice, customSlab]
+  );
+
   const run = useCallback(() => {
-    const cfg: OptimizeConfig = {
-      slab: {
-        lengthMm: Math.round((config.slabLengthCm ?? 290) * 10),
-        widthMm: Math.round((config.slabWidthCm ?? 190) * 10),
-        grainAxis: config.grainAxis,
-      },
-      kerfMm: Math.max(0, Math.round(config.kerfMm ?? 4)),
-      grainMode: config.respectGrain ? "per-piece" : "none",
-      allowRotation: config.allowRotation,
-      cuttingMode: config.cuttingMode,
-      minReusableMm: 100,
-      seed: 1,
-      maxCandidates: 60,
-      timeLimitMs: 2000,
-    };
     const out: Record<string, OptimizeResult> = {};
     for (const g of pieceGroups) {
+      const slab = slabFor(g);
+      const cfg: OptimizeConfig = {
+        slab: { lengthMm: Math.round(slab.lengthCm * 10), widthMm: Math.round(slab.widthCm * 10), grainAxis: config.grainAxis },
+        kerfMm: Math.max(0, Math.round(config.kerfMm ?? 4)),
+        grainMode: config.respectGrain ? "per-piece" : "none",
+        allowRotation: config.allowRotation,
+        cuttingMode: config.cuttingMode,
+        minReusableMm: 100,
+        seed: 1,
+        maxCandidates: 60,
+        timeLimitMs: 2000,
+      };
       out[groupKeyOf(g)] = optimize({
         materialId: g.materialId,
         materialName: g.materialName,
@@ -127,7 +171,7 @@ export default function CutlistPanel({ orderIds, pricing, groups, onClose, onToa
     setResults(out);
     setActiveSlab(0);
     setActiveMaterial(pieceGroups[0] ? groupKeyOf(pieceGroups[0]) : "");
-  }, [config, pieceGroups]);
+  }, [config, pieceGroups, slabFor]);
 
   const save = useCallback(async () => {
     if (!results) return;
@@ -239,13 +283,7 @@ export default function CutlistPanel({ orderIds, pricing, groups, onClose, onToa
       {/* Step 2 — configuration */}
       <div className="rounded-xl bg-white p-5 shadow-sm">
         <h2 className="mb-3 text-sm font-bold uppercase tracking-wider text-darkGold">2. Настройки на плочата и разкроя</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Field label="Дължина на плочата (см)">
-            <NumInput value={config.slabLengthCm} onChange={(v) => set("slabLengthCm", v)} min={1} />
-          </Field>
-          <Field label="Ширина на плочата (см)">
-            <NumInput value={config.slabWidthCm} onChange={(v) => set("slabWidthCm", v)} min={1} />
-          </Field>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Field label="Прорез / kerf (мм)" hint="Реално отнета ширина от диска.">
             <NumInput value={config.kerfMm} onChange={(v) => set("kerfMm", v)} min={0} />
           </Field>
@@ -269,6 +307,82 @@ export default function CutlistPanel({ orderIds, pricing, groups, onClose, onToa
             <input type="checkbox" checked={config.allowRotation} onChange={(e) => set("allowRotation", e.target.checked)} />
             Разреши завъртане на 90°
           </label>
+        </div>
+
+        <div className="mt-5">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-600">Плоча по материал (от наличността)</p>
+          {pieceGroups.length === 0 ? (
+            <p className="text-sm text-gray-500">Няма материали.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[640px] text-sm">
+                <thead className="text-left text-xs uppercase tracking-wider text-gray-500">
+                  <tr>
+                    <th className="py-2 pr-3">Материал</th>
+                    <th className="py-2 pr-3">Размер на плочата</th>
+                    <th className="py-2 pr-3">Наличност</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pieceGroups.map((g) => {
+                    const key = groupKeyOf(g);
+                    const options = slabOptions(g);
+                    const choice = choiceOf(g, options);
+                    const slab = slabFor(g);
+                    const custom = customSlab[key] ?? DEFAULT_SLAB_CM;
+                    return (
+                      <tr key={key} className="border-t border-gray-100 align-top">
+                        <td className="py-2 pr-3">
+                          {g.materialName} <span className="text-xs text-gray-400">· {g.thicknessMm} мм</span>
+                        </td>
+                        <td className="py-2 pr-3">
+                          <select
+                            className={inputClass}
+                            value={choice}
+                            onChange={(e) => setSlabChoice((c) => ({ ...c, [key]: e.target.value }))}
+                            aria-label={`Размер на плочата за ${g.materialName}`}
+                          >
+                            {options.map((o) => (
+                              <option key={o.id} value={o.id}>
+                                {o.lengthCm} × {o.widthCm} см{o.thicknessCm ? ` · ${o.thicknessCm} см` : ""} · {o.qty} бр.
+                              </option>
+                            ))}
+                            <option value="custom">Друг размер…</option>
+                          </select>
+                          {choice === "custom" && (
+                            <div className="mt-2 flex items-center gap-2">
+                              <NumInput
+                                className={`${inputClass} w-24`}
+                                value={custom.lengthCm}
+                                min={1}
+                                onChange={(v) => setCustomSlab((c) => ({ ...c, [key]: { ...(c[key] ?? DEFAULT_SLAB_CM), lengthCm: v } }))}
+                                aria-label="Дължина на плочата"
+                              />
+                              <span className="text-gray-400">×</span>
+                              <NumInput
+                                className={`${inputClass} w-24`}
+                                value={custom.widthCm}
+                                min={1}
+                                onChange={(v) => setCustomSlab((c) => ({ ...c, [key]: { ...(c[key] ?? DEFAULT_SLAB_CM), widthCm: v } }))}
+                                aria-label="Ширина на плочата"
+                              />
+                              <span className="text-xs text-gray-400">см</span>
+                            </div>
+                          )}
+                        </td>
+                        <td className="py-2 pr-3">
+                          {slab.qty == null ? <span className="text-amber-700">по избор</span> : <span className="text-gray-600">{slab.qty} бр.</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+          <p className="mt-2 text-xs text-gray-400">
+            Размерите идват от „Наличност“ на материала (Каталог → Наличност на плочите). Ако няма наличност, задайте размер ръчно.
+          </p>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <button className={primaryButton} onClick={run} disabled={pieceGroups.length === 0}>
@@ -304,6 +418,18 @@ export default function CutlistPanel({ orderIds, pricing, groups, onClose, onToa
               );
             })}
           </div>
+
+          {(() => {
+            const slab = slabFor(activeGroup);
+            if (slab.qty == null) return null;
+            const enough = activeResult.slabsUsed <= slab.qty;
+            return (
+              <p className={`rounded-lg px-4 py-2 text-sm ${enough ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-700"}`}>
+                {enough ? "✔" : "⚠"} Нужни {activeResult.slabsUsed} плочи · налични {slab.qty} ({slab.lengthCm} × {slab.widthCm} см).
+                {!enough && " Не достигат плочи – намалете поръчката или изберете друг размер."}
+              </p>
+            );
+          })()}
 
           <CutlistReport result={activeResult} labelOf={orderLabel} />
 
