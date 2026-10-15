@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { fmtLen, pieceColorMap, pieceKey, readableText } from "@/lib/cutlist/colors";
+import { offcutFitsProduct } from "@/lib/cutlist/standards";
 import type { Offcut, Placement, SlabResult, SlabSpec } from "@/lib/cutlist/types";
 
 function GrainArrow({ p, gap }: { p: Placement; gap: number }) {
@@ -37,11 +38,15 @@ export default function CutlistLayout({
   slabSpec,
   kerfMm,
   labelOf,
+  minOffcutLengthMm,
+  minOffcutWidthMm,
 }: {
   slab: SlabResult;
   slabSpec: SlabSpec;
   kerfMm: number;
   labelOf?: (orderId: string) => string;
+  minOffcutLengthMm?: number;
+  minOffcutWidthMm?: number;
 }) {
   const L = slab.lengthMm;
   const W = slab.widthMm;
@@ -56,7 +61,6 @@ export default function CutlistLayout({
   const inset = gap / 2;
   const stroke = Math.max(kerfMm, L * 0.0012);
   const font = L / 64;
-  const offcutText = readableText("#ecfdf5");
   const grainAxis = slabSpec.grainAxis ?? "length";
 
   return (
@@ -94,6 +98,7 @@ export default function CutlistLayout({
           {/* Remaining / offcut areas with their sizes. */}
           {slab.offcuts.map((o: Offcut, i) => {
             const big = o.lengthMm > L * 0.05 && o.widthMm > W * 0.05;
+            const usable = offcutFitsProduct(o, minOffcutLengthMm ?? 0, minOffcutWidthMm ?? 0);
             return (
               <g key={`off-${i}`} pointerEvents="none">
                 <rect
@@ -101,8 +106,8 @@ export default function CutlistLayout({
                   y={o.yMm}
                   width={o.lengthMm}
                   height={o.widthMm}
-                  fill="#ecfdf5"
-                  stroke="#10b981"
+                  fill={usable ? "#ecfdf5" : "#f1f5f9"}
+                  stroke={usable ? "#10b981" : "#94a3b8"}
                   strokeWidth={stroke}
                   strokeDasharray={`${font} ${font}`}
                 />
@@ -113,10 +118,10 @@ export default function CutlistLayout({
                     textAnchor="middle"
                     dominantBaseline="middle"
                     fontSize={font}
-                    fill={offcutText}
+                    fill={usable ? "#047857" : "#64748b"}
                   >
                     <tspan x={o.xMm + o.lengthMm / 2} dy={-font * 0.2}>
-                      остатък
+                      остатък{usable ? " · годен" : ""}
                     </tspan>
                     <tspan x={o.xMm + o.lengthMm / 2} dy={font * 1.15}>
                       {fmtLen(o.lengthMm)} × {fmtLen(o.widthMm)}

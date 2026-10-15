@@ -1,6 +1,7 @@
 "use client";
 
 import { formatNum } from "@/lib/orders/pricing";
+import { offcutFitsProduct } from "@/lib/cutlist/standards";
 import type { ReactNode } from "react";
 import type { OptimizeResult, UnplacedReason } from "@/lib/cutlist/types";
 
@@ -9,9 +10,21 @@ const M2 = 1_000_000;
 export const UNPLACED_REASON_LABEL: Record<UnplacedReason, string> = {
   "exceeds-slab": "По-голям от плочата",
   grain: "Не позволява текстурата",
+  orientation: "Не позволява избраната ориентация",
   "search-exhausted": "Няма намерено място в лимита на търсене",
   invalid: "Невалидни размери",
 };
+
+/** The single biggest reusable offcut across all slabs — the piece most worth keeping. */
+function largestOffcut(result: OptimizeResult): string {
+  let best: { lengthMm: number; widthMm: number } | null = null;
+  for (const s of result.slabs) {
+    for (const o of s.offcuts) {
+      if (!best || o.lengthMm * o.widthMm > best.lengthMm * best.widthMm) best = o;
+    }
+  }
+  return best ? `${best.lengthMm} × ${best.widthMm} мм (${formatNum((best.lengthMm * best.widthMm) / 1_000_000, 2)} м²)` : "—";
+}
 
 function Metric({ label, value }: { label: string; value: ReactNode }) {
   return (
@@ -22,9 +35,33 @@ function Metric({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-export default function CutlistReport({ result, labelOf }: { result: OptimizeResult; labelOf?: (orderId: string) => string }) {
+export default function CutlistReport({
+  result,
+  labelOf,
+  productLabel,
+  minOffcutLengthMm,
+  minOffcutWidthMm,
+}: {
+  result: OptimizeResult;
+  labelOf?: (orderId: string) => string;
+  productLabel?: string;
+  minOffcutLengthMm?: number;
+  minOffcutWidthMm?: number;
+}) {
   const slab = result.slabSpec;
   const complete = result.unplacedCount === 0;
+
+  const largestUsable = (() => {
+    if (!productLabel) return null;
+    let best: { lengthMm: number; widthMm: number } | null = null;
+    for (const s of result.slabs) {
+      for (const o of s.offcuts) {
+        if (!offcutFitsProduct(o, minOffcutLengthMm ?? 0, minOffcutWidthMm ?? 0)) continue;
+        if (!best || o.lengthMm * o.widthMm > best.lengthMm * best.widthMm) best = o;
+      }
+    }
+    return best;
+  })();
 
   return (
     <div className="space-y-6">
@@ -32,7 +69,13 @@ export default function CutlistReport({ result, labelOf }: { result: OptimizeRes
         <div className="rounded-xl bg-white p-5 shadow-sm">
           <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-darkGold">Обобщение</h3>
           <Metric label="Материал" value={result.materialName ?? result.materialId} />
-          <Metric label="Размери на плочата" value={`${slab.lengthMm} × ${slab.widthMm} мм (${slab.lengthMm / 10} × ${slab.widthMm / 10} см)`} />
+          <Metric
+            label="Размери на плочите"
+            value={
+              [...new Set(result.slabs.map((s) => `${s.lengthMm} × ${s.widthMm}`))].join(" · ") ||
+              `${slab.lengthMm} × ${slab.widthMm}`
+            }
+          />
           <Metric label="Текстура" value={slab.grainAxis === "width" ? "по ширина" : "по дължина"} />
           <Metric label="Прорез (kerf)" value={`${result.kerfMm} мм`} />
           <Metric label="Необходими плочи" value={formatNum(result.slabsUsed, 0)} />
@@ -57,6 +100,17 @@ export default function CutlistReport({ result, labelOf }: { result: OptimizeRes
           <Metric label="Използваемост" value={`${formatNum(result.totalUtilizationPercent, 1)} %`} />
           <Metric label="Отпадък" value={`${formatNum(result.wasteAreaMm2 / M2, 2)} м²`} />
           <Metric label="Повторно използваем остатък" value={`${formatNum(result.reusableOffcutAreaMm2 / M2, 2)} м²`} />
+          <Metric label="Най-голям остатък (за преизползване)" value={largestOffcut(result)} />
+          {productLabel && (
+            <Metric
+              label={`Годен остатък — ${productLabel}`}
+              value={
+                largestUsable
+                  ? `${largestUsable.lengthMm} × ${largestUsable.widthMm} мм (${formatNum((largestUsable.lengthMm * largestUsable.widthMm) / M2, 2)} м²) · общо ${formatNum(result.usableOffcutAreaMm2 / M2, 2)} м²`
+                  : "няма годен остатък"
+              }
+            />
+          )}
           <Metric
             label={result.cutMetricsEstimated ? "Разрези (оценка)" : "Разрези"}
             value={formatNum(result.totalCutCount, 0)}

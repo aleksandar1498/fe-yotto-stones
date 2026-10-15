@@ -1,16 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { subscribeOrder, type Order } from "@/lib/orders/ordersData";
 import { formatNum, type PricingSettings } from "@/lib/orders/pricing";
 import { subscribeSlabStock, type GroupEntry, type SlabLot, type SlabStock } from "@/lib/adminData";
 import { groupPiecesByMaterial, materialGrainResolver, type CutlistPieceGroup } from "@/lib/cutlist/build";
-import { optimize } from "@/lib/cutlist/optimizer";
-import type { CuttingMode, GrainAxis, OptimizeConfig, OptimizeResult } from "@/lib/cutlist/types";
+import { createSearch, type CutlistSearch } from "@/lib/cutlist/optimizer";
+import { PRODUCT_KINDS, PRODUCT_STANDARDS, type ProductKind } from "@/lib/cutlist/standards";
+import type { CuttingMode, GrainAxis, OptimizeConfig, OptimizeResult, OrientationPreference, SlabPoolEntry } from "@/lib/cutlist/types";
 import { saveCutlist, subscribeCutlists, type SavedCutlist } from "@/lib/cutlist/store";
 import { useAdminAuth } from "@/providers/AdminAuthProvider";
-import { ErrorBox, Field, NumInput, Spinner, inputClass, primaryButton, secondaryButton } from "../ui";
+import { ErrorBox, Field, NumInput, Spinner, dangerButton, inputClass, primaryButton, secondaryButton } from "../ui";
 import CutlistLayout from "./CutlistLayout";
 import CutlistReport from "./CutlistReport";
 import { formatDateTime, orderNo } from "./common";
@@ -23,12 +24,25 @@ type Props = {
   onToast: (msg: string) => void;
 };
 
+type SearchDepth = "fast" | "normal" | "deep";
+
+const SEARCH_PRESETS: Record<SearchDepth, { maxCandidates: number; timeLimitMs: number; label: string }> = {
+  fast: { maxCandidates: 60, timeLimitMs: 1500, label: "Бързо" },
+  normal: { maxCandidates: 300, timeLimitMs: 8000, label: "Нормално" },
+  deep: { maxCandidates: 1500, timeLimitMs: 30000, label: "Задълбочено" },
+};
+
 type Config = {
   kerfMm: number | null;
   respectGrain: boolean;
   allowRotation: boolean;
   cuttingMode: CuttingMode;
   grainAxis: GrainAxis;
+  orientation: OrientationPreference;
+  search: SearchDepth;
+  product: ProductKind | "none";
+  offcutLengthMm: number | null;
+  offcutWidthMm: number | null;
 };
 
 const DEFAULT_CONFIG: Config = {
@@ -37,6 +51,11 @@ const DEFAULT_CONFIG: Config = {
   allowRotation: true,
   cuttingMode: "guillotine",
   grainAxis: "length",
+  orientation: "auto",
+  search: "normal",
+  product: "windowsill",
+  offcutLengthMm: PRODUCT_STANDARDS.windowsill.minLengthMm,
+  offcutWidthMm: PRODUCT_STANDARDS.windowsill.minWidthMm,
 };
 
 const DEFAULT_SLAB_CM = { lengthCm: 290, widthCm: 190 };
@@ -54,7 +73,7 @@ export default function CutlistPanel({ orderIds, pricing, groups, onClose, onToa
   const [error, setError] = useState("");
   const [config, setConfig] = useState<Config>(DEFAULT_CONFIG);
   const [stock, setStock] = useState<Record<string, SlabStock>>({});
-  const [slabChoice, setSlabChoice] = useState<Record<string, string>>({});
+  const [poolSel, setPoolSel] = useState<Record<string, string[]>>({});
   const [customSlab, setCustomSlab] = useState<Record<string, { lengthCm: number | null; widthCm: number | null }>>({});
   const [results, setResults] = useState<Record<string, OptimizeResult> | null>(null);
   const [activeMaterial, setActiveMaterial] = useState("");
@@ -62,6 +81,11 @@ export default function CutlistPanel({ orderIds, pricing, groups, onClose, onToa
   const [name, setName] = useState("");
   const [saved, setSaved] = useState<SavedCutlist[]>([]);
   const [past, setPast] = useState<SavedCutlist[]>([]);
+  const [running, setRunning] = useState(false);
+  const [progress, setProgress] = useState<{ evaluated: number; total: number } | null>(null);
+  const stopRef = useRef(false);
+  const rafRef = useRef<number | null>(null);
+  const searchesRef = useRef<{ key: string; search: CutlistSearch }[]>([]);
 
   useEffect(() => {
     const map = new Map<string, Order>();
@@ -83,6 +107,14 @@ export default function CutlistPanel({ orderIds, pricing, groups, onClose, onToa
   useEffect(() => subscribeCutlists(setPast, () => setPast([])), []);
   useEffect(() => subscribeSlabStock(setStock, () => setStock({})), []);
 
+  useEffect(
+    () => () => {
+      stopRef.current = true;
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    },
+    []
+  );
+
   const pieceGroups = useMemo(() => {
     if (!orders) return [];
     return groupPiecesByMaterial(orders, { pricing, resolveGrain: materialGrainResolver(groups) });
@@ -103,6 +135,13 @@ export default function CutlistPanel({ orderIds, pricing, groups, onClose, onToa
   );
 
   const set = <K extends keyof Config>(key: K, value: Config[K]) => setConfig((c) => ({ ...c, [key]: value }));
+
+  const setProduct = (product: ProductKind | "none") =>
+    setConfig((c) =>
+      product === "none" ? { ...c, product } : { ...c, product, offcutLengthMm: PRODUCT_STANDARDS[product].minLengthMm, offcutWidthMm: PRODUCT_STANDARDS[product].minWidthMm }
+    );
+
+  const minOffcutActive = config.product !== "none";
 
   // Available slab sizes for a material, grouped by dimensions (from slab_stock).
   const slabOptions = useCallback(
@@ -128,50 +167,131 @@ export default function CutlistPanel({ orderIds, pricing, groups, onClose, onToa
     [stock]
   );
 
-  const choiceOf = (g: CutlistPieceGroup, options = slabOptions(g)) =>
-    slabChoice[groupKeyOf(g)] ?? (options.length ? options[0].id : "custom");
+  const poolIdsFor = (key: string, options: { id: string }[]) => poolSel[key] ?? options.map((o) => o.id);
+  const togglePool = (key: string, id: string, options: { id: string }[]) =>
+    setPoolSel((s) => {
+      const base = s[key] ?? options.map((o) => o.id);
+      return { ...s, [key]: base.includes(id) ? base.filter((x) => x !== id) : [...base, id] };
+    });
+  const movePool = (key: string, id: string, dir: -1 | 1, options: { id: string }[]) =>
+    setPoolSel((s) => {
+      const base = [...(s[key] ?? options.map((o) => o.id))];
+      const i = base.indexOf(id);
+      const j = i + dir;
+      if (i < 0 || j < 0 || j >= base.length) return s;
+      [base[i], base[j]] = [base[j], base[i]];
+      return { ...s, [key]: base };
+    });
 
-  // Chosen slab for a material: an inventory lot (with its availability) or a custom size.
-  const slabFor = useCallback(
-    (g: CutlistPieceGroup): { lengthCm: number; widthCm: number; qty: number | null } => {
+  // The selected slabs for a material, in priority order (first entry is used first).
+  const slabPoolFor = useCallback(
+    (g: CutlistPieceGroup): SlabPoolEntry[] => {
       const options = slabOptions(g);
-      const choice = slabChoice[groupKeyOf(g)] ?? (options.length ? options[0].id : "custom");
-      if (choice !== "custom") {
-        const opt = options.find((o) => o.id === choice);
-        if (opt) return { lengthCm: opt.lengthCm, widthCm: opt.widthCm, qty: opt.qty };
+      const key = groupKeyOf(g);
+      const ids = poolSel[key] ?? options.map((o) => o.id);
+      const entries: SlabPoolEntry[] = [];
+      for (const id of ids) {
+        if (id === "custom") {
+          const c = customSlab[key] ?? DEFAULT_SLAB_CM;
+          entries.push({
+            lengthMm: Math.round((c.lengthCm ?? DEFAULT_SLAB_CM.lengthCm) * 10),
+            widthMm: Math.round((c.widthCm ?? DEFAULT_SLAB_CM.widthCm) * 10),
+            qty: 1,
+            label: "по избор",
+          });
+        } else {
+          const o = options.find((x) => x.id === id);
+          if (o) entries.push({ lengthMm: Math.round(o.lengthCm * 10), widthMm: Math.round(o.widthCm * 10), qty: o.qty, label: `${o.lengthCm}×${o.widthCm}` });
+        }
       }
-      const custom = customSlab[groupKeyOf(g)] ?? DEFAULT_SLAB_CM;
-      return { lengthCm: custom.lengthCm ?? DEFAULT_SLAB_CM.lengthCm, widthCm: custom.widthCm ?? DEFAULT_SLAB_CM.widthCm, qty: null };
+      if (entries.length === 0) {
+        const c = customSlab[key] ?? DEFAULT_SLAB_CM;
+        entries.push({
+          lengthMm: Math.round((c.lengthCm ?? DEFAULT_SLAB_CM.lengthCm) * 10),
+          widthMm: Math.round((c.widthCm ?? DEFAULT_SLAB_CM.widthCm) * 10),
+          qty: Number.POSITIVE_INFINITY,
+        });
+      }
+      return entries;
     },
-    [slabOptions, slabChoice, customSlab]
+    [slabOptions, poolSel, customSlab]
   );
 
+  // Anytime search: step candidate layouts frame by frame, keep the best, allow stopping early.
   const run = useCallback(() => {
-    const out: Record<string, OptimizeResult> = {};
-    for (const g of pieceGroups) {
-      const slab = slabFor(g);
+    if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    const preset = SEARCH_PRESETS[config.search];
+    const searches = pieceGroups.map((g) => {
+      const pool = slabPoolFor(g);
+      const primary = pool[0];
       const cfg: OptimizeConfig = {
-        slab: { lengthMm: Math.round(slab.lengthCm * 10), widthMm: Math.round(slab.widthCm * 10), grainAxis: config.grainAxis },
+        slab: { lengthMm: primary.lengthMm, widthMm: primary.widthMm, grainAxis: config.grainAxis },
+        slabPool: pool,
+        orientation: config.orientation,
         kerfMm: Math.max(0, Math.round(config.kerfMm ?? 4)),
         grainMode: config.respectGrain ? "per-piece" : "none",
         allowRotation: config.allowRotation,
         cuttingMode: config.cuttingMode,
         minReusableMm: 100,
+        minOffcutLengthMm: config.product === "none" ? 0 : config.offcutLengthMm ?? 0,
+        minOffcutWidthMm: config.product === "none" ? 0 : config.offcutWidthMm ?? 0,
         seed: 1,
-        maxCandidates: 60,
-        timeLimitMs: 2000,
+        maxCandidates: preset.maxCandidates,
+        timeLimitMs: preset.timeLimitMs,
       };
-      out[groupKeyOf(g)] = optimize({
-        materialId: g.materialId,
-        materialName: g.materialName,
-        config: cfg,
-        pieces: g.pieces,
-      });
-    }
-    setResults(out);
+      return {
+        key: groupKeyOf(g),
+        search: createSearch({ materialId: g.materialId, materialName: g.materialName, config: cfg, pieces: g.pieces }),
+      };
+    });
+
+    searchesRef.current = searches;
+    stopRef.current = false;
+    setResults(null);
     setActiveSlab(0);
     setActiveMaterial(pieceGroups[0] ? groupKeyOf(pieceGroups[0]) : "");
-  }, [config, pieceGroups, slabFor]);
+    setRunning(true);
+    setProgress({ evaluated: 0, total: searches.reduce((a, s) => a + s.search.total, 0) });
+
+    let first = true;
+    const loop = () => {
+      const stopping = stopRef.current;
+      let active = false;
+      let improved = false;
+      let evaluated = 0;
+      let total = 0;
+      for (const { search } of searches) {
+        // Evaluate a batch per frame so the search budget is actually used (not starved by re-renders).
+        let steps = 0;
+        while (!stopping && !search.done && steps < 8) {
+          search.step();
+          if (search.lastImproved) improved = true;
+          steps++;
+        }
+        if (!stopping && !search.done) active = true;
+        evaluated += search.evaluated;
+        total += search.total;
+      }
+      if (improved || first || !active) {
+        const acc: Record<string, OptimizeResult> = {};
+        for (const { key, search } of searches) acc[key] = search.result();
+        setResults(acc);
+        first = false;
+      }
+      setProgress({ evaluated, total });
+      if (active) {
+        rafRef.current = requestAnimationFrame(loop);
+      } else {
+        rafRef.current = null;
+        setRunning(false);
+      }
+    };
+    rafRef.current = requestAnimationFrame(loop);
+  }, [config, pieceGroups, slabPoolFor]);
+
+  const stopSearch = useCallback(() => {
+    stopRef.current = true;
+  }, []);
 
   const save = useCallback(async () => {
     if (!results) return;
@@ -299,6 +419,53 @@ export default function CutlistPanel({ orderIds, pricing, groups, onClose, onToa
               <option value="freestyle">Свободно подреждане (макс. ефективност)</option>
             </select>
           </Field>
+          <Field label="Ориентация на детайлите" hint="По дължина = дългата страна по дължината на плочата (ленти); по ширина = вертикални колони.">
+            <select
+              className={inputClass}
+              value={config.orientation}
+              onChange={(e) => set("orientation", e.target.value as OrientationPreference)}
+            >
+              <option value="auto">Автоматично</option>
+              <option value="length">По дължина (хоризонтални ленти)</option>
+              <option value="width">По ширина (вертикални колони)</option>
+            </select>
+          </Field>
+          <Field label="Дълбочина на търсенето" hint="Търси непрекъснато и подобрява разкроя; може да се спре по всяко време.">
+            <select className={inputClass} value={config.search} onChange={(e) => set("search", e.target.value as SearchDepth)}>
+              {(Object.keys(SEARCH_PRESETS) as SearchDepth[]).map((k) => (
+                <option key={k} value={k}>
+                  {SEARCH_PRESETS[k].label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field
+            label="Продукт (годен остатък)"
+            hint={
+              config.product === "none"
+                ? "Без изискване — всеки остатък е „годен“."
+                : `Стандартни дължини: ${PRODUCT_STANDARDS[config.product].standardLengthsMm.join(", ")} мм`
+            }
+          >
+            <select className={inputClass} value={config.product} onChange={(e) => setProduct(e.target.value as ProductKind | "none")}>
+              <option value="none">Без изискване</option>
+              {PRODUCT_KINDS.map((k) => (
+                <option key={k} value={k}>
+                  {PRODUCT_STANDARDS[k].label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          {minOffcutActive && (
+            <>
+              <Field label="Мин. дължина на остатъка (мм)" hint="Остатъци под това не се броят за годни.">
+                <NumInput value={config.offcutLengthMm} onChange={(v) => set("offcutLengthMm", v)} min={0} />
+              </Field>
+              <Field label="Мин. ширина на остатъка (мм)">
+                <NumInput value={config.offcutWidthMm} onChange={(v) => set("offcutWidthMm", v)} min={0} />
+              </Field>
+            </>
+          )}
           <label className="flex items-center gap-2 self-end text-sm text-obsidian">
             <input type="checkbox" checked={config.respectGrain} onChange={(e) => set("respectGrain", e.target.checked)} />
             Спазвай посоката на текстурата
@@ -319,59 +486,105 @@ export default function CutlistPanel({ orderIds, pricing, groups, onClose, onToa
                 <thead className="text-left text-xs uppercase tracking-wider text-gray-500">
                   <tr>
                     <th className="py-2 pr-3">Материал</th>
-                    <th className="py-2 pr-3">Размер на плочата</th>
-                    <th className="py-2 pr-3">Наличност</th>
+                    <th className="py-2 pr-3">Размери на плочите (по приоритет)</th>
+                    <th className="py-2 pr-3">Приоритет</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pieceGroups.map((g) => {
                     const key = groupKeyOf(g);
                     const options = slabOptions(g);
-                    const choice = choiceOf(g, options);
-                    const slab = slabFor(g);
+                    const ids = poolIdsFor(key, options);
                     const custom = customSlab[key] ?? DEFAULT_SLAB_CM;
+                    const labelOfId = (id: string) =>
+                      id === "custom" ? "по избор" : `${options.find((o) => o.id === id)?.lengthCm ?? "?"}×${options.find((o) => o.id === id)?.widthCm ?? "?"}`;
                     return (
                       <tr key={key} className="border-t border-gray-100 align-top">
                         <td className="py-2 pr-3">
                           {g.materialName} <span className="text-xs text-gray-400">· {g.thicknessMm} мм</span>
                         </td>
                         <td className="py-2 pr-3">
-                          <select
-                            className={inputClass}
-                            value={choice}
-                            onChange={(e) => setSlabChoice((c) => ({ ...c, [key]: e.target.value }))}
-                            aria-label={`Размер на плочата за ${g.materialName}`}
-                          >
-                            {options.map((o) => (
-                              <option key={o.id} value={o.id}>
-                                {o.lengthCm} × {o.widthCm} см{o.thicknessCm ? ` · ${o.thicknessCm} см` : ""} · {o.qty} бр.
-                              </option>
-                            ))}
-                            <option value="custom">Друг размер…</option>
-                          </select>
-                          {choice === "custom" && (
-                            <div className="mt-2 flex items-center gap-2">
-                              <NumInput
-                                className={`${inputClass} w-24`}
-                                value={custom.lengthCm}
-                                min={1}
-                                onChange={(v) => setCustomSlab((c) => ({ ...c, [key]: { ...(c[key] ?? DEFAULT_SLAB_CM), lengthCm: v } }))}
-                                aria-label="Дължина на плочата"
+                          <div className="space-y-1">
+                            {options.length === 0 && <p className="text-xs text-amber-700">Няма налични размери — добавете ръчно:</p>}
+                            {options.map((o) => {
+                              const idx = ids.indexOf(o.id);
+                              return (
+                                <div key={o.id} className="flex items-center gap-2">
+                                  <input
+                                    type="checkbox"
+                                    className="h-4 w-4 accent-darkGold"
+                                    checked={idx >= 0}
+                                    onChange={() => togglePool(key, o.id, options)}
+                                    aria-label={`Включи ${o.lengthCm}×${o.widthCm} см`}
+                                  />
+                                  <span className="text-sm">
+                                    {o.lengthCm} × {o.widthCm} см{o.thicknessCm ? ` · ${o.thicknessCm} см` : ""} · {o.qty} бр.
+                                  </span>
+                                  {idx >= 0 && (
+                                    <span className="ml-auto flex items-center">
+                                      <button
+                                        type="button"
+                                        className="rounded px-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+                                        disabled={idx === 0}
+                                        onClick={() => movePool(key, o.id, -1, options)}
+                                        title="По-висок приоритет"
+                                        aria-label="По-висок приоритет"
+                                      >
+                                        ↑
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="rounded px-1 text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+                                        disabled={idx === ids.length - 1}
+                                        onClick={() => movePool(key, o.id, 1, options)}
+                                        title="По-нисък приоритет"
+                                        aria-label="По-нисък приоритет"
+                                      >
+                                        ↓
+                                      </button>
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 accent-darkGold"
+                                checked={ids.includes("custom")}
+                                onChange={() => togglePool(key, "custom", options)}
+                                aria-label="Друг размер"
                               />
-                              <span className="text-gray-400">×</span>
-                              <NumInput
-                                className={`${inputClass} w-24`}
-                                value={custom.widthCm}
-                                min={1}
-                                onChange={(v) => setCustomSlab((c) => ({ ...c, [key]: { ...(c[key] ?? DEFAULT_SLAB_CM), widthCm: v } }))}
-                                aria-label="Ширина на плочата"
-                              />
-                              <span className="text-xs text-gray-400">см</span>
+                              <span className="text-sm">Друг размер…</span>
                             </div>
-                          )}
+                            {ids.includes("custom") && (
+                              <div className="flex items-center gap-2 pl-6">
+                                <NumInput
+                                  className={`${inputClass} w-24`}
+                                  value={custom.lengthCm}
+                                  min={1}
+                                  onChange={(v) => setCustomSlab((c) => ({ ...c, [key]: { ...(c[key] ?? DEFAULT_SLAB_CM), lengthCm: v } }))}
+                                  aria-label="Дължина на плочата"
+                                />
+                                <span className="text-gray-400">×</span>
+                                <NumInput
+                                  className={`${inputClass} w-24`}
+                                  value={custom.widthCm}
+                                  min={1}
+                                  onChange={(v) => setCustomSlab((c) => ({ ...c, [key]: { ...(c[key] ?? DEFAULT_SLAB_CM), widthCm: v } }))}
+                                  aria-label="Ширина на плочата"
+                                />
+                                <span className="text-xs text-gray-400">см</span>
+                              </div>
+                            )}
+                          </div>
                         </td>
-                        <td className="py-2 pr-3">
-                          {slab.qty == null ? <span className="text-amber-700">по избор</span> : <span className="text-gray-600">{slab.qty} бр.</span>}
+                        <td className="py-2 pr-3 text-xs text-gray-600">
+                          {ids.length === 0 ? (
+                            <span className="text-amber-700">изберете поне един размер</span>
+                          ) : (
+                            <span>Приоритет: {ids.map(labelOfId).join(" → ")}</span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -385,13 +598,34 @@ export default function CutlistPanel({ orderIds, pricing, groups, onClose, onToa
           </p>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <button className={primaryButton} onClick={run} disabled={pieceGroups.length === 0}>
-            ▶ Стартирай оптимизацията
-          </button>
-          <span className="text-xs text-gray-500">
-            Детерминистичен алгоритъм · оценява няколко подредби и избира най-ефективната.
-          </span>
+          {running ? (
+            <button className={dangerButton} onClick={stopSearch}>
+              ■ Спри и използвай най-доброто
+            </button>
+          ) : (
+            <button className={primaryButton} onClick={run} disabled={pieceGroups.length === 0}>
+              ▶ Стартирай оптимизацията
+            </button>
+          )}
+          {running && progress ? (
+            <span className="text-sm text-gray-600">
+              оценени {progress.evaluated} / {progress.total} варианта…
+            </span>
+          ) : (
+            <span className="text-xs text-gray-500">
+              Търси непрекъснато и подобрява разкроя; спрете, когато резултатът е добър (гледайте използваемостта и
+              най-големия остатък).
+            </span>
+          )}
         </div>
+        {running && progress && (
+          <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-gray-200">
+            <div
+              className="h-full bg-darkGold transition-all"
+              style={{ width: `${progress.total > 0 ? Math.min(100, (progress.evaluated / progress.total) * 100) : 0}%` }}
+            />
+          </div>
+        )}
       </div>
 
       {/* Step 3 — results */}
@@ -419,20 +653,7 @@ export default function CutlistPanel({ orderIds, pricing, groups, onClose, onToa
             })}
           </div>
 
-          {(() => {
-            const slab = slabFor(activeGroup);
-            if (slab.qty == null) return null;
-            const enough = activeResult.slabsUsed <= slab.qty;
-            return (
-              <p className={`rounded-lg px-4 py-2 text-sm ${enough ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-700"}`}>
-                {enough ? "✔" : "⚠"} Нужни {activeResult.slabsUsed} плочи · налични {slab.qty} ({slab.lengthCm} × {slab.widthCm} см).
-                {!enough && " Не достигат плочи – намалете поръчката или изберете друг размер."}
-              </p>
-            );
-          })()}
-
-          <CutlistReport result={activeResult} labelOf={orderLabel} />
-
+          {/* Visualization first so you can review it while changing settings below. */}
           <div className="rounded-xl bg-white p-5 shadow-sm">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-sm font-bold uppercase tracking-wider text-darkGold">Разположение по плочи</h3>
@@ -456,11 +677,50 @@ export default function CutlistPanel({ orderIds, pricing, groups, onClose, onToa
                   Плоча {activeSlabData.slabIndex} от {activeResult.slabsUsed} · {activeSlabData.placements.length} детайла ·{" "}
                   използваемост {formatNum(activeSlabData.utilizationPercent, 1)} % · остатък{" "}
                   {formatNum(activeSlabData.reusableOffcutAreaMm2 / 1_000_000, 2)} м²
+                  {minOffcutActive && (
+                    <>
+                      {" "}
+                      · годен остатък {formatNum(activeSlabData.usableOffcutAreaMm2 / 1_000_000, 2)} м²
+                    </>
+                  )}
                 </p>
-                <CutlistLayout slab={activeSlabData} slabSpec={activeResult.slabSpec} kerfMm={activeResult.kerfMm} labelOf={orderLabel} />
+                <CutlistLayout
+                  slab={activeSlabData}
+                  slabSpec={activeResult.slabSpec}
+                  kerfMm={activeResult.kerfMm}
+                  labelOf={orderLabel}
+                  minOffcutLengthMm={minOffcutActive ? config.offcutLengthMm ?? undefined : undefined}
+                  minOffcutWidthMm={minOffcutActive ? config.offcutWidthMm ?? undefined : undefined}
+                />
               </>
             )}
           </div>
+
+          {!activeResult.guillotineCuttable && (
+            <p className="rounded-lg border border-red-300 bg-red-50 px-4 py-2 text-sm text-red-700">
+              ⚠ Този разкрой <strong>не е изпълним с прави разфасовки</strong> (2-осна машина): има детайл, който изисква
+              разрез през друг детайл. Изберете „Комбинирани прави разфасовки“ или променете настройките.
+            </p>
+          )}
+          {activeResult.slabUsage.length > 0 && (
+            <p
+              className={`rounded-lg px-4 py-2 text-sm ${
+                activeResult.slabUsage.some((u) => u.used > u.available) ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-800"
+              }`}
+            >
+              {activeResult.slabUsage.some((u) => u.used > u.available) ? "⚠" : "✔"} Използвани плочи:{" "}
+              {activeResult.slabUsage.map((u) => `${u.lengthMm / 10}×${u.widthMm / 10} см: ${u.used} от ${u.available}`).join(" · ")}
+              {activeResult.slabUsage.some((u) => u.used > u.available) && " — недостиг на наличност."}
+            </p>
+          )}
+
+          <CutlistReport
+            result={activeResult}
+            labelOf={orderLabel}
+            productLabel={config.product !== "none" ? PRODUCT_STANDARDS[config.product].label : undefined}
+            minOffcutLengthMm={minOffcutActive ? config.offcutLengthMm ?? undefined : undefined}
+            minOffcutWidthMm={minOffcutActive ? config.offcutWidthMm ?? undefined : undefined}
+          />
 
           <div className="rounded-xl bg-white p-5 shadow-sm">
             <h3 className="mb-3 text-sm font-bold uppercase tracking-wider text-darkGold">4. Запазване и експорт</h3>
