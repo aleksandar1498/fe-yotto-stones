@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { freeRectangles, overlaps } from "./geometry";
+import { freeRectangles, isGuillotineCuttable, overlaps } from "./geometry";
 
 describe("geometry helpers", () => {
   it("treats touching edges as non-overlapping", () => {
@@ -23,5 +23,27 @@ describe("geometry helpers", () => {
         expect(overlaps(free[i], free[j])).toBe(false);
       }
     }
+  });
+
+  it("accepts a guillotine-cuttable layout (straight cuts only)", () => {
+    const slab = { lengthMm: 2000, widthMm: 2000 };
+    const grid = [
+      { xMm: 0, yMm: 0, lengthMm: 1000, widthMm: 1000 },
+      { xMm: 1000, yMm: 0, lengthMm: 1000, widthMm: 1000 },
+      { xMm: 0, yMm: 1000, lengthMm: 1000, widthMm: 1000 },
+      { xMm: 1000, yMm: 1000, lengthMm: 1000, widthMm: 1000 },
+    ];
+    expect(isGuillotineCuttable(slab, grid)).toBe(true);
+  });
+
+  it("rejects a pinwheel layout that needs a cut through a piece (2-axis machine)", () => {
+    const slab = { lengthMm: 3000, widthMm: 3000 };
+    const pinwheel = [
+      { xMm: 0, yMm: 0, lengthMm: 1000, widthMm: 2000 },
+      { xMm: 0, yMm: 2000, lengthMm: 2000, widthMm: 1000 },
+      { xMm: 1000, yMm: 0, lengthMm: 2000, widthMm: 1000 },
+      { xMm: 2000, yMm: 1000, lengthMm: 1000, widthMm: 2000 },
+    ];
+    expect(isGuillotineCuttable(slab, pinwheel)).toBe(false);
   });
 });

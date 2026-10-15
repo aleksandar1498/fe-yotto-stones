@@ -226,17 +226,112 @@ describe("optimizer — cut metrics and offcuts", () => {
   it("reports reusable offcuts with real sizes inside the slab", () => {
     const result = optimize(input([piece(600, 400)]));
     const offcuts = result.slabs[0].offcuts;
+    const slabL = result.slabs[0].lengthMm;
+    const slabW = result.slabs[0].widthMm;
     expect(offcuts.length).toBeGreaterThan(0);
     for (const o of offcuts) {
       expect(o.lengthMm).toBeGreaterThanOrEqual(100);
       expect(o.widthMm).toBeGreaterThanOrEqual(100);
       expect(o.xMm).toBeGreaterThanOrEqual(0);
       expect(o.yMm).toBeGreaterThanOrEqual(0);
-      expect(o.xMm + o.lengthMm).toBeLessThanOrEqual(result.slabSpec.lengthMm);
-      expect(o.yMm + o.widthMm).toBeLessThanOrEqual(result.slabSpec.widthMm);
+      expect(o.xMm + o.lengthMm).toBeLessThanOrEqual(slabL);
+      expect(o.yMm + o.widthMm).toBeLessThanOrEqual(slabW);
     }
     expect(result.slabs[0].reusableOffcutAreaMm2).toBe(
       offcuts.reduce((a, o) => a + o.lengthMm * o.widthMm, 0)
     );
+  });
+
+  it("reports the single largest reusable offcut", () => {
+    const result = optimize(input([piece(600, 400)]));
+    expect(result.largestOffcutAreaMm2).toBeGreaterThan(0);
+    const maxOffcut = Math.max(0, ...result.slabs.flatMap((s) => s.offcuts.map((o) => o.lengthMm * o.widthMm)));
+    expect(result.largestOffcutAreaMm2).toBe(maxOffcut);
+  });
+});
+
+describe("optimizer — slab pool and orientation", () => {
+  it("uses a priority slab pool: the first fitting size is consumed first", () => {
+    const pool = [
+      { lengthMm: 1900, widthMm: 1800, qty: 1, label: "remnant" },
+      { lengthMm: 2900, widthMm: 1800, qty: 5, label: "full" },
+    ];
+    const result = optimize(input([piece(1200, 600, 1), piece(600, 500, 1)], { slabPool: pool }));
+    expect(result.slabsUsed).toBe(1);
+    // Slab orientation is free, so compare dimensions as an unordered pair.
+    const dims = [result.slabs[0].lengthMm, result.slabs[0].widthMm].sort((a, b) => a - b);
+    expect(dims).toEqual([1800, 1900]); // the high-priority remnant was used
+    const pair = (u: { lengthMm: number; widthMm: number }) => [u.lengthMm, u.widthMm].sort((a, b) => a - b).join("x");
+    expect(result.slabUsage.find((u) => pair(u) === "1800x1900")?.used).toBe(1);
+    expect(result.slabUsage.find((u) => pair(u) === "1800x2900")?.used).toBe(0);
+    expect(validateResult(result)).toEqual([]);
+  });
+
+  it("falls back to the next size once the priority stock is exhausted", () => {
+    const pool = [
+      { lengthMm: 1300, widthMm: 700, qty: 1 },
+      { lengthMm: 1600, widthMm: 700, qty: 5 },
+    ];
+    // Two 1200×600 pieces: the 1300×700 remnant holds one, the other spills to the bigger size.
+    const result = optimize(input([piece(1200, 600, 2, { pieceId: "a" })], { slabPool: pool, kerfMm: 0 }));
+    expect(result.slabsUsed).toBe(2);
+    const sizes = result.slabs.map((s) => [s.lengthMm, s.widthMm].sort((a, b) => a - b).join("x")).sort();
+    expect(sizes).toEqual(["700x1300", "700x1600"]);
+    expect(validateResult(result)).toEqual([]);
+  });
+
+  it("honours the orientation preference", () => {
+    const byLength = optimize(input([piece(1200, 300)], { orientation: "length" }));
+    expect(byLength.slabs[0].placements[0].rotated).toBe(false);
+
+    const byWidth = optimize(input([piece(1200, 300)], { orientation: "width" }));
+    expect(byWidth.slabs[0].placements[0].rotated).toBe(true);
+  });
+
+  it("guarantees a guillotine-cuttable layout in guillotine mode", () => {
+    const pieces = [
+      piece(1300, 260, 6, { pieceId: "terrace" }),
+      piece(1840, 150, 1, { pieceId: "a" }),
+      piece(1645, 150, 1, { pieceId: "b" }),
+      piece(1560, 150, 1, { pieceId: "c" }),
+      piece(1120, 100, 1, { pieceId: "d" }),
+    ];
+    const result = optimize(input(pieces, { cuttingMode: "guillotine", slab: { lengthMm: 1900, widthMm: 2900, grainAxis: "length" } }));
+    expect(result.guillotineCuttable).toBe(true);
+    expect(validateResult(result)).toEqual([]);
+  });
+});
+
+describe("optimizer — band packing benchmark (cutlistoptimizer-style)", () => {
+  // The exact limestone set from the two orders, on the reference sheet 1900 × 2900.
+  const pieces = [
+    piece(1300, 260, 6, { pieceId: "terrace" }),
+    piece(1840, 150, 1, { pieceId: "hol-tv" }),
+    piece(1780, 170, 1, { pieceId: "detska-v" }),
+    piece(1645, 150, 1, { pieceId: "hol-kotle" }),
+    piece(1560, 150, 1, { pieceId: "spalnya-v" }),
+    piece(1540, 100, 1, { pieceId: "spalnya-vi" }),
+    piece(1520, 100, 1, { pieceId: "detska1" }),
+    piece(1120, 100, 1, { pieceId: "detska2" }),
+    piece(900, 70, 1, { pieceId: "detska-v2" }),
+  ];
+  const slab = { lengthMm: 2900, widthMm: 1900, grainAxis: "length" as const };
+
+  it("packs everything on one sheet and leaves one big reusable band", () => {
+    const result = optimize(input(pieces, { cuttingMode: "guillotine", slab, minOffcutLengthMm: 1200, minOffcutWidthMm: 150 }));
+    expect(result.slabsUsed).toBe(1);
+    expect(result.unplacedCount).toBe(0);
+    expect(result.guillotineCuttable).toBe(true);
+    // Reference leaves ~1900×752 (1.43 m²); we require at least 1.4 m² in one usable piece.
+    expect(result.largestUsableOffcutAreaMm2).toBeGreaterThanOrEqual(1_400_000);
+    expect(validateResult(result)).toEqual([]);
+  });
+
+  it("produces a row/column band structure", () => {
+    const result = optimize(input(pieces, { cuttingMode: "guillotine", slab }));
+    const placements = result.slabs[0].placements;
+    // Some pieces horizontal (rows) and the terrace pieces vertical (columns).
+    expect(placements.some((p) => !p.rotated)).toBe(true);
+    expect(placements.filter((p) => p.rotated).length).toBeGreaterThanOrEqual(4);
   });
 });

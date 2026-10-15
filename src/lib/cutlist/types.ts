@@ -25,6 +25,19 @@ export type SlabSpec = {
   grainAxis?: GrainAxis;
 };
 
+/** One entry of the available-slab pool: `qty` identical slabs, consumed in list order (priority). */
+export type SlabPoolEntry = {
+  lengthMm: number;
+  widthMm: number;
+  /** How many identical slabs of this size are available. */
+  qty: number;
+  /** Optional label for reporting (e.g. the inventory lot note). */
+  label?: string;
+};
+
+/** Preferred orientation of pieces: auto = packer decides, otherwise the piece's length axis is fixed. */
+export type OrientationPreference = "auto" | "length" | "width";
+
 export type PieceSpec = {
   /** Stable id of the source position; one spec may expand into several instances. */
   pieceId: string;
@@ -46,6 +59,13 @@ export type PieceSpec = {
 
 export type OptimizeConfig = {
   slab: SlabSpec;
+  /**
+   * Optional pool of available slab sizes consumed in priority order (first entry first),
+   * each limited by qty. When set, `slab` is only used as the reported default spec.
+   */
+  slabPool?: SlabPoolEntry[];
+  /** auto = packer decides; length/width fixes the piece's length axis along that slab axis. */
+  orientation?: OrientationPreference;
   /** Saw blade width in mm — real material removed between adjacent pieces. */
   kerfMm: number;
   grainMode: GrainMode;
@@ -54,6 +74,10 @@ export type OptimizeConfig = {
   cuttingMode: CuttingMode;
   /** Free areas with both axes at least this size count as reusable offcuts. Default 100 mm. */
   minReusableMm?: number;
+  /** Product standard for offcut usefulness: a piece is "usable" only if it fits at least this length (mm). 0 = disabled. */
+  minOffcutLengthMm?: number;
+  /** Product standard: minimum offcut width/depth (mm). 0 = disabled. */
+  minOffcutWidthMm?: number;
   /** Reproducible PRNG seed for bounded restarts. Default 1. */
   seed?: number;
   /** Upper bound on candidate layouts evaluated. Default 60. */
@@ -106,6 +130,12 @@ export type SlabResult = {
   /** Free rectangles large enough to be reused (both axes >= minReusableMm). */
   offcuts: Offcut[];
   reusableOffcutAreaMm2: number;
+  /** Area of the single largest reusable offcut on this slab (mm²). */
+  largestOffcutAreaMm2: number;
+  /** Reusable offcut area that can still yield a standard product (mm²). */
+  usableOffcutAreaMm2: number;
+  /** Area of the largest offcut that can still yield a standard product (mm²). */
+  largestUsableOffcutAreaMm2: number;
   kerfLossAreaMm2: number;
   /** Number of saw cuts needed for this slab (real for guillotine, estimated otherwise). */
   cutCount: number;
@@ -113,7 +143,7 @@ export type SlabResult = {
   cutLengthMm: number;
 };
 
-export type UnplacedReason = "exceeds-slab" | "grain" | "search-exhausted" | "invalid";
+export type UnplacedReason = "exceeds-slab" | "grain" | "orientation" | "search-exhausted" | "invalid";
 
 export type UnplacedPiece = {
   pieceId: string;
@@ -148,6 +178,12 @@ export type OptimizeResult = {
   wasteAreaMm2: number;
   kerfLossAreaMm2: number;
   reusableOffcutAreaMm2: number;
+  /** Area of the single largest reusable offcut across all slabs (mm²). */
+  largestOffcutAreaMm2: number;
+  /** Reusable offcut area that can still yield a standard product (mm²). */
+  usableOffcutAreaMm2: number;
+  /** Area of the largest offcut that can still yield a standard product (mm²). */
+  largestUsableOffcutAreaMm2: number;
   totalUtilizationPercent: number;
   /** Total saw cuts across all slabs. */
   totalCutCount: number;
@@ -157,6 +193,10 @@ export type OptimizeResult = {
   cutMetricsEstimated: boolean;
   kerfMm: number;
   slabSpec: SlabSpec;
+  /** Slabs consumed per available size (for the pool report). */
+  slabUsage: { lengthMm: number; widthMm: number; used: number; available: number }[];
+  /** true when every slab can be cut with full straight cuts (2-axis bridge saw). */
+  guillotineCuttable: boolean;
   config: OptimizeConfig;
   seed: number;
   candidatesEvaluated: number;

@@ -121,7 +121,10 @@ export function validateResult(result: OptimizeResult, opts: ValidateOptions = {
   const grainMode = opts.grainMode ?? result.config?.grainMode ?? "none";
 
   for (const s of result.slabs) {
-    const bounds: Rect = { x: 0, y: 0, w: slabLength, h: slabWidth };
+    // Each slab carries its own size (the pool may mix sizes and orientations).
+    const slabLengthS = s.lengthMm || slabLength;
+    const slabWidthS = s.widthMm || slabWidth;
+    const bounds: Rect = { x: 0, y: 0, w: slabLengthS, h: slabWidthS };
     const inflated: { pid: string; r: Rect; instance: number }[] = [];
 
     for (const p of s.placements) {
@@ -188,4 +191,63 @@ export function validateResult(result: OptimizeResult, opts: ValidateOptions = {
   }
 
   return issues;
+}
+
+export type CuttableRect = { xMm: number; yMm: number; lengthMm: number; widthMm: number };
+
+/**
+ * true when the slab can be reduced to these pieces by recursive straight cuts that
+ * each span the whole current sub-panel — i.e. it is executable on a 2-axis bridge saw.
+ *
+ * A layout is NOT guillotine-cuttable when some piece would require a cut that passes
+ * through another piece (a piece "buried" between others).
+ */
+export function isGuillotineCuttable(
+  slab: { lengthMm: number; widthMm: number },
+  placements: CuttableRect[]
+): boolean {
+  const eps = 1e-6;
+  const rects = placements.map((p) => ({ x: p.xMm, y: p.yMm, w: p.lengthMm, h: p.widthMm }));
+  if (rects.length <= 1) return true;
+
+  const fullyInside = (r: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }) =>
+    r.x >= b.x - eps && r.y >= b.y - eps && r.x + r.w <= b.x + b.w + eps && r.y + r.h <= b.y + b.h + eps;
+
+  const solve = (region: { x: number; y: number; w: number; h: number }, items: typeof rects): boolean => {
+    if (items.length <= 1) return true;
+
+    const xs = new Set<number>();
+    const ys = new Set<number>();
+    for (const r of items) {
+      xs.add(r.x);
+      xs.add(r.x + r.w);
+      ys.add(r.y);
+      ys.add(r.y + r.h);
+    }
+
+    // Try every vertical then horizontal cut that no piece straddles.
+    for (const x of xs) {
+      if (x <= region.x + eps || x >= region.x + region.w - eps) continue;
+      if (items.some((r) => r.x < x - eps && r.x + r.w > x + eps)) continue;
+      const left = { x: region.x, y: region.y, w: x - region.x, h: region.h };
+      const right = { x, y: region.y, w: region.x + region.w - x, h: region.h };
+      const li = items.filter((r) => fullyInside(r, left));
+      const ri = items.filter((r) => fullyInside(r, right));
+      if (li.length + ri.length !== items.length) continue;
+      if (solve(left, li) && solve(right, ri)) return true;
+    }
+    for (const y of ys) {
+      if (y <= region.y + eps || y >= region.y + region.h - eps) continue;
+      if (items.some((r) => r.y < y - eps && r.y + r.h > y + eps)) continue;
+      const top = { x: region.x, y: region.y, w: region.w, h: y - region.y };
+      const bottom = { x: region.x, y, w: region.w, h: region.y + region.h - y };
+      const ti = items.filter((r) => fullyInside(r, top));
+      const bi = items.filter((r) => fullyInside(r, bottom));
+      if (ti.length + bi.length !== items.length) continue;
+      if (solve(top, ti) && solve(bottom, bi)) return true;
+    }
+    return false;
+  };
+
+  return solve({ x: 0, y: 0, w: slab.lengthMm, h: slab.widthMm }, rects);
 }

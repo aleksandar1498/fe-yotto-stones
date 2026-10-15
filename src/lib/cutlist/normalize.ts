@@ -61,6 +61,9 @@ function normalizeSlab(raw: unknown, index: number): SlabResult {
     utilizationPercent: num(s.utilizationPercent, slabAreaMm2 > 0 ? (usedAreaMm2 / slabAreaMm2) * 100 : 0),
     offcuts,
     reusableOffcutAreaMm2: num(s.reusableOffcutAreaMm2, offcuts.reduce((a, o) => a + o.lengthMm * o.widthMm, 0)),
+    largestOffcutAreaMm2: num(s.largestOffcutAreaMm2, offcuts.reduce((a, o) => Math.max(a, o.lengthMm * o.widthMm), 0)),
+    usableOffcutAreaMm2: num(s.usableOffcutAreaMm2, 0),
+    largestUsableOffcutAreaMm2: num(s.largestUsableOffcutAreaMm2, 0),
     kerfLossAreaMm2: num(s.kerfLossAreaMm2),
     cutCount,
     cutLengthMm,
@@ -84,6 +87,12 @@ export function normalizeResult(raw: unknown): OptimizeResult {
   const config = (isObj(r.config)
     ? (r.config as unknown as OptimizeConfig)
     : ({ slab: slabSpec, kerfMm: num(r.kerfMm), grainMode: "none", allowRotation: true, cuttingMode: "freestyle" } as OptimizeConfig));
+  const slabUsage = asArray<Record<string, unknown>>(r.slabUsage).map((u) => ({
+    lengthMm: num(u?.lengthMm),
+    widthMm: num(u?.widthMm),
+    used: num(u?.used),
+    available: num(u?.available),
+  }));
   return {
     materialId: String(r.materialId ?? ""),
     materialName: typeof r.materialName === "string" ? r.materialName : undefined,
@@ -100,12 +109,17 @@ export function normalizeResult(raw: unknown): OptimizeResult {
     wasteAreaMm2: num(r.wasteAreaMm2, totalSlabAreaMm2 - usedAreaMm2),
     kerfLossAreaMm2: num(r.kerfLossAreaMm2),
     reusableOffcutAreaMm2: num(r.reusableOffcutAreaMm2, slabs.reduce((a, s) => a + s.reusableOffcutAreaMm2, 0)),
+    largestOffcutAreaMm2: num(r.largestOffcutAreaMm2, slabs.reduce((a, s) => Math.max(a, s.largestOffcutAreaMm2), 0)),
+    usableOffcutAreaMm2: num(r.usableOffcutAreaMm2, slabs.reduce((a, s) => a + s.usableOffcutAreaMm2, 0)),
+    largestUsableOffcutAreaMm2: num(r.largestUsableOffcutAreaMm2, slabs.reduce((a, s) => Math.max(a, s.largestUsableOffcutAreaMm2), 0)),
     totalUtilizationPercent: num(r.totalUtilizationPercent, totalSlabAreaMm2 > 0 ? (usedAreaMm2 / totalSlabAreaMm2) * 100 : 0),
     totalCutCount,
     totalCutLengthMm,
     cutMetricsEstimated: !!r.cutMetricsEstimated || backfilledCuts,
     kerfMm: num(r.kerfMm),
     slabSpec,
+    slabUsage,
+    guillotineCuttable: r.guillotineCuttable !== false,
     config,
     seed: num(r.seed, 1),
     candidatesEvaluated: num(r.candidatesEvaluated),
