@@ -85,7 +85,7 @@ const priceSignature = ({ updatedAt: _u, customizedAt: _c, ...rest }: PricingSet
 function blankDraft(pricing: PricingSettings): OrderDraft {
   const section = blankSection(pricing, 0);
   return {
-    status: "request",
+    status: "quoted",
     client: { name: "", phone: "", email: "", address: "" },
     material: section.material,
     stoneKey: section.stoneKey,
@@ -122,13 +122,13 @@ function draftFrom(o: Order): OrderDraft {
   });
 }
 
-// Copy as a fresh request at today's prices: new ids everywhere, no attachments/history.
+// Copy as a fresh quote at today's prices: new ids everywhere, no attachments/history.
 export function duplicateDraft(o: Order | OrderDraft, pricing: PricingSettings): OrderDraft {
   const src = ensureSections(o);
   const idMap = new Map(src.map((s) => [s.id, newId()]));
   const sections = src.map((s, i) => ({ ...structuredClone(s), id: idMap.get(s.id)!, sort: i }));
   return {
-    status: "request",
+    status: "quoted",
     client: { ...o.client },
     material: { ...sections[0].material },
     stoneKey: sections[0].stoneKey,

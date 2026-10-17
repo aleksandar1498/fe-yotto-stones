@@ -7,10 +7,12 @@ import OrdersPanel from "./orders/OrdersPanel";
 import RequestsPanel from "./orders/RequestsPanel";
 import { isUnread, subscribeRequests } from "@/lib/orders/requestsData";
 
+const DEFAULT_TAB = "orders";
+
 const TABS = [
-  { key: "catalogue", label: "Каталог" },
   { key: "orders", label: "Поръчки" },
   { key: "requests", label: "Запитвания" },
+  { key: "catalogue", label: "Каталог" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -20,7 +22,7 @@ export default function AdminTabs() {
   const router = useRouter();
   const pathname = usePathname();
   const raw = params.get("tab");
-  const tab: TabKey = TABS.some((t) => t.key === raw) ? (raw as TabKey) : "catalogue";
+  const tab: TabKey = TABS.some((t) => t.key === raw) ? (raw as TabKey) : DEFAULT_TAB;
   const [unread, setUnread] = useState(0);
 
   useEffect(
@@ -40,7 +42,7 @@ export default function AdminTabs() {
             key={t.key}
             role="tab"
             aria-selected={tab === t.key}
-            onClick={() => router.push(t.key === "catalogue" ? pathname : `${pathname}?tab=${t.key}`)}
+            onClick={() => router.push(t.key === DEFAULT_TAB ? pathname : `${pathname}?tab=${t.key}`)}
             className={`-mb-px border-b-2 px-5 py-3 text-sm font-semibold uppercase tracking-wider transition ${
               tab === t.key ? "border-darkGold text-darkGold" : "border-transparent text-gray-500 hover:text-obsidian"
             }`}

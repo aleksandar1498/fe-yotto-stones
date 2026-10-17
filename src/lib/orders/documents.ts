@@ -128,7 +128,7 @@ export function withDocumentDefaults(stored: unknown): DocumentSettings {
   };
 }
 
-const OFFER_STATUSES: OrderStatus[] = ["request", "quoted"];
+const OFFER_STATUSES: OrderStatus[] = ["quoted"];
 export const isOffer = (status: OrderStatus) => OFFER_STATUSES.includes(status);
 
 export function fillPlaceholders(text: string, s: DocumentSettings): string {

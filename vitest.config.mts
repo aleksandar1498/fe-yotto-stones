@@ -12,7 +12,7 @@ export default defineConfig({
   test: {
     root: rootDir,
     environment: "node",
-    include: ["src/lib/cutlist/**/*.test.ts"],
+    include: ["src/**/*.test.ts"],
     globals: false,
   },
 });

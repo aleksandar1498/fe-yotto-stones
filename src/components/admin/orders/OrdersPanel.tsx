@@ -5,11 +5,12 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { onValue, ref } from "firebase/database";
 import { db } from "@/lib/firebase";
 import { toGroupEntries, type GroupEntry } from "@/lib/adminData";
-import { subscribeDocumentSettings, subscribePricing, type OrderDraft } from "@/lib/orders/ordersData";
+import { subscribeDocumentSettings, subscribePricing, deleteOrderById, type OrderDraft, type OrderSummary } from "@/lib/orders/ordersData";
 import { type DocumentSettings } from "@/lib/orders/documents";
 import { type PricingSettings } from "@/lib/orders/pricing";
-import { ErrorBox, Spinner, Toast, primaryButton, secondaryButton } from "../ui";
-import ActiveOrders from "./ActiveOrders";
+import { ErrorBox, Modal, Spinner, Toast, dangerButton, primaryButton, secondaryButton } from "../ui";
+import OrdersKanban from "./OrdersKanban";
+import { orderNo } from "./common";
 import DocumentSettingsForm from "./DocumentSettingsForm";
 import OrderHistory from "./OrderHistory";
 import OrderEditor from "./OrderEditor";
@@ -33,6 +34,9 @@ export default function OrdersPanel() {
   const [docSettings, setDocSettings] = useState<DocumentSettings | null>(null);
   const [template, setTemplate] = useState<OrderDraft | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState<OrderSummary | null>(null);
+  const [deletingBusy, setDeletingBusy] = useState(false);
+  const [deletedId, setDeletedId] = useState<string | null>(null);
 
   useEffect(() => subscribeDocumentSettings(setDocSettings, (e) => setError(e.message)), []);
 
@@ -60,7 +64,7 @@ export default function OrdersPanel() {
   const navigate = useCallback(
     (next: { view?: string; order?: string | null }) => {
       const sp = new URLSearchParams(params.toString());
-      sp.set("tab", "orders");
+      sp.delete("tab");
       if (next.view !== undefined) {
         if (next.view === "history") sp.set("view", "history");
         else sp.delete("view");
@@ -85,13 +89,33 @@ export default function OrdersPanel() {
 
   const startCutlist = useCallback(() => {
     const sp = new URLSearchParams(params.toString());
-    sp.set("tab", "orders");
+    sp.delete("tab");
     sp.delete("view");
     sp.delete("order");
     sp.set("cutlist", "1");
     sp.set("orders", [...selected].join(","));
     router.push(`${pathname}?${sp.toString()}`);
   }, [params, pathname, router, selected]);
+
+  const confirmDelete = useCallback(async () => {
+    if (!deleting) return;
+    setDeletingBusy(true);
+    try {
+      await deleteOrderById(deleting.id);
+      setSelected((prev) => {
+        const next = new Set(prev);
+        next.delete(deleting.id);
+        return next;
+      });
+      setToast(`Поръчка ${orderNo(deleting.number)} е изтрита завинаги.`);
+      setDeletedId(deleting.id);
+      setDeleting(null);
+    } catch (e) {
+      setToast(e instanceof Error ? e.message : "Грешка при изтриване.");
+    } finally {
+      setDeletingBusy(false);
+    }
+  }, [deleting]);
 
   if (error) return <ErrorBox>Грешка при зареждане: {error}</ErrorBox>;
   if (!pricing || !groups) return <Spinner label="Зареждане на поръчките…" />;
@@ -190,11 +214,17 @@ export default function OrdersPanel() {
         </p>
       )}
       {view === "history" ? (
-        <OrderHistory pricing={pricing} onOpen={(id) => navigate({ order: id })} />
-      ) : (
-        <ActiveOrders
+        <OrderHistory
           pricing={pricing}
           onOpen={(id) => navigate({ order: id })}
+          onDelete={setDeleting}
+          deletedId={deletedId}
+        />
+      ) : (
+        <OrdersKanban
+          pricing={pricing}
+          onOpen={(id) => navigate({ order: id })}
+          onDelete={setDeleting}
           selection={{ selected, onToggle: toggleSelected }}
         />
       )}
@@ -224,6 +254,30 @@ export default function OrdersPanel() {
             setToast("Документите и условията са запазени.");
           }}
         />
+      )}
+      {deleting && (
+        <Modal
+          title="Изтриване на поръчка"
+          onClose={() => {
+            if (!deletingBusy) setDeleting(null);
+          }}
+          footer={
+            <>
+              <button className={secondaryButton} onClick={() => setDeleting(null)} disabled={deletingBusy}>
+                Отказ
+              </button>
+              <button className={dangerButton} onClick={confirmDelete} disabled={deletingBusy}>
+                {deletingBusy ? "Изтриване…" : "Изтрий завинаги"}
+              </button>
+            </>
+          }
+        >
+          <p className="text-sm text-gray-700">
+            Сигурни ли сте, че искате да изтриете <strong>{deleting.clientName || "тази поръчка"}</strong> (
+            {orderNo(deleting.number)})? Това премахва поръчката, позициите и прикачените файлове <strong>завинаги</strong> –
+            включително от историята. Действието е необратимо.
+          </p>
+        </Modal>
       )}
       <Toast message={toast} onDone={clearToast} />
     </div>

@@ -64,7 +64,7 @@ export async function deleteRequest(r: OrderRequest) {
   await update(ref(db), { [`order_requests/${r.id}`]: null });
 }
 
-// Turns the request into an order in status "Запитване" using today's price list; the admin then reviews and quotes it.
+// Turns the request into an order in status "Оферта" using today's price list; the admin then reviews and confirms it.
 export async function approveRequest(r: OrderRequest, pricing: PricingSettings): Promise<string> {
   if (r.status === "approved" && r.orderId) return r.orderId;
   const positions: Position[] = r.positions.map((p, i) => ({ ...structuredClone(p), id: newId(), sort: i }));
@@ -77,7 +77,7 @@ export async function approveRequest(r: OrderRequest, pricing: PricingSettings):
     .filter(Boolean)
     .join("\n");
   const draft: OrderDraft = {
-    status: "request",
+    status: "quoted",
     client: { name: r.client.name, phone: r.client.phone, email: r.client.email, address: "" },
     material: { ...r.material },
     stoneKey: r.stoneKey,

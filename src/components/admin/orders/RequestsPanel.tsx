@@ -237,7 +237,7 @@ function RequestDetail({
             onClick={() =>
               run(async () => {
                 const id = await approveRequest(r, pricing!);
-                onToast("Създадена е поръчка в статус „Запитване“.");
+                onToast("Създадена е поръчка в статус „Оферта“.");
                 onOpenOrder(id);
               })
             }
@@ -326,7 +326,7 @@ function RequestDetail({
 
         {!closed && (
           <p className="text-xs text-gray-400">
-            „Одобри“ създава поръчка в статус „Запитване“ по текущия ценоразпис – прегледайте я и я превърнете в оферта.
+            „Одобри“ създава поръчка в статус „Оферта“ по текущия ценоразпис – прегледайте я и я потвърдете.
           </p>
         )}
       </div>

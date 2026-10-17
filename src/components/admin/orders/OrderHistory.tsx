@@ -3,13 +3,20 @@
 import { useCallback, useEffect, useState } from "react";
 import { fetchHistoryPage, type OrderSummary } from "@/lib/orders/ordersData";
 import { type PricingSettings } from "@/lib/orders/pricing";
+import { phoneMatches } from "@/lib/orders/search";
 import { ErrorBox, Spinner, inputClass, secondaryButton } from "../ui";
 import { OrderList } from "./ActiveOrders";
 
-type Props = { pricing: PricingSettings; onOpen: (id: string) => void };
+type Props = {
+  pricing: PricingSettings;
+  onOpen: (id: string) => void;
+  onDelete?: (order: OrderSummary) => void;
+  /** An order deleted elsewhere (e.g. from the Kanban) — removed from the loaded pages immediately. */
+  deletedId?: string | null;
+};
 
 // History is fetched page by page (never a full-tree subscription); search filters the pages loaded so far.
-export default function OrderHistory({ pricing, onOpen }: Props) {
+export default function OrderHistory({ pricing, onOpen, onDelete, deletedId }: Props) {
   const [items, setItems] = useState<OrderSummary[] | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -36,6 +43,12 @@ export default function OrderHistory({ pricing, onOpen }: Props) {
     void load();
   }, [load]);
 
+  // Keep the loaded pages in sync with permanent deletions (no reload needed).
+  useEffect(() => {
+    if (!deletedId) return;
+    setItems((prev) => (prev ? prev.filter((o) => o.id !== deletedId) : prev));
+  }, [deletedId]);
+
   if (!items && !error) return <Spinner />;
 
   const q = search.trim().toLowerCase();
@@ -46,7 +59,7 @@ export default function OrderHistory({ pricing, onOpen }: Props) {
       (!q ||
         o.clientName?.toLowerCase().includes(q) ||
         o.materialLabel?.toLowerCase().includes(q) ||
-        (digits.length > 0 && (String(o.number).includes(digits) || o.clientPhone?.replace(/\D/g, "").includes(digits))))
+        (digits.length > 0 && (String(o.number).includes(digits) || phoneMatches(o.clientPhone, digits))))
   );
 
   return (
@@ -79,6 +92,7 @@ export default function OrderHistory({ pricing, onOpen }: Props) {
           stoneLabel={(k) => pricing.stones[k]?.label ?? k}
           dateOf={(o) => o.closedAt}
           dateLabel="Приключена"
+          onDelete={onDelete}
         />
       )}
       {hasMore && (

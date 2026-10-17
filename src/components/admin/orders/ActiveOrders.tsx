@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ORDER_STATUSES, subscribeActive, type OrderSummary } from "@/lib/orders/ordersData";
 import { formatMoney, type PricingSettings } from "@/lib/orders/pricing";
+import { phoneMatches } from "@/lib/orders/search";
 import { ErrorBox, Spinner, inputClass } from "../ui";
 import { StatusBadge, formatDate, orderNo } from "./common";
 
@@ -40,7 +41,7 @@ export default function ActiveOrders({ pricing, onOpen, selection }: Props) {
         return (
           o.clientName?.toLowerCase().includes(q) ||
           o.materialLabel?.toLowerCase().includes(q) ||
-          (digits.length > 0 && (String(o.number).includes(digits) || o.clientPhone?.replace(/\D/g, "").includes(digits)))
+          (digits.length > 0 && (String(o.number).includes(digits) || phoneMatches(o.clientPhone, digits)))
         );
       })
       .sort((a, b) => b.createdAt - a.createdAt);
@@ -130,6 +131,7 @@ export function OrderList({
   dateOf,
   dateLabel,
   selection,
+  onDelete,
 }: {
   orders: OrderSummary[];
   onOpen: (id: string) => void;
@@ -137,6 +139,7 @@ export function OrderList({
   dateOf: (o: OrderSummary) => number | undefined;
   dateLabel: string;
   selection?: { selected: Set<string>; onToggle: (id: string) => void };
+  onDelete?: (order: OrderSummary) => void;
 }) {
   const allSelected = !!selection && orders.length > 0 && orders.every((o) => selection.selected.has(o.id));
   const toggleAll = () => {
@@ -175,6 +178,16 @@ export function OrderList({
                 <span className="font-semibold text-obsidian">{formatMoney(o.gross, o.currency)}</span>
               </div>
             </button>
+            {onDelete && (
+              <button
+                type="button"
+                onClick={() => onDelete(o)}
+                className="rounded-xl bg-white px-3 text-gray-400 shadow-sm transition hover:text-red-600"
+                aria-label={`Изтрий завинаги ${orderNo(o.number)}`}
+              >
+                🗑
+              </button>
+            )}
           </li>
         ))}
       </ul>
@@ -200,6 +213,7 @@ export function OrderList({
               <th className="px-4 py-3">Статус</th>
               <th className="px-4 py-3">{dateLabel}</th>
               <th className="px-4 py-3 text-right">Сума с ДДС</th>
+              {onDelete && <th className="w-10 px-4 py-3" />}
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
@@ -236,6 +250,19 @@ export function OrderList({
                 </td>
                 <td className="px-4 py-3 text-gray-600">{formatDate(dateOf(o))}</td>
                 <td className="px-4 py-3 text-right font-semibold text-obsidian">{formatMoney(o.gross, o.currency)}</td>
+                {onDelete && (
+                  <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => onDelete(o)}
+                      className="rounded px-1 text-gray-400 transition hover:bg-red-50 hover:text-red-600"
+                      title="Изтрий завинаги"
+                      aria-label={`Изтрий завинаги ${orderNo(o.number)}`}
+                    >
+                      🗑
+                    </button>
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

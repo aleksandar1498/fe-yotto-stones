@@ -12,6 +12,9 @@ import promise from 'eslint-plugin-promise';
 import prettier from 'eslint-plugin-prettier';
 
 export default [
+  // Tests are excluded from tsconfig.json, so the type-aware parser cannot load
+  // them; vitest type-checks them instead.
+  { ignores: ['**/*.test.ts'] },
   js.configs.recommended,
   {
     files: ['**/*.{ts,tsx,js,jsx}'],

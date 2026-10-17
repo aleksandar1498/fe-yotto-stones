@@ -25,7 +25,6 @@ import {
 import { withDocumentDefaults, type DocumentSettings } from "./documents";
 
 export const ORDER_STATUSES = [
-  { key: "request", label: "Запитване", active: true, color: "bg-sky-100 text-sky-800" },
   { key: "quoted", label: "Оферта", active: true, color: "bg-indigo-100 text-indigo-800" },
   { key: "confirmed", label: "Потвърдена", active: true, color: "bg-amber-100 text-amber-800" },
   { key: "production", label: "В производство", active: true, color: "bg-orange-100 text-orange-800" },
@@ -42,7 +41,7 @@ export const statusInfo = (s: string) => ORDER_STATUSES.find((x) => x.key === s)
 export const isActiveStatus = (s: string) => statusInfo(s).active;
 
 // Forward path of the workflow; any active order may also be cancelled, and steps can be undone.
-const FLOW: OrderStatus[] = ["request", "quoted", "confirmed", "production", "ready"];
+const FLOW: OrderStatus[] = ["quoted", "confirmed", "production", "ready"];
 export function nextStatuses(s: OrderStatus): OrderStatus[] {
   if (s === "ready") return ["issued", "delivered", "installed", "cancelled"];
   const i = FLOW.indexOf(s);
@@ -350,7 +349,7 @@ export async function saveOrder(draft: OrderDraft, existing?: Order | null): Pro
     doc,
     id,
     number,
-    status: existing?.status ?? draft.status ?? "request",
+    status: existing?.status ?? draft.status ?? "quoted",
     attachments: existing?.attachments ?? [],
     statusLog: existing?.statusLog ?? [],
     totals: { net: q.net, vat: q.vat, gross: q.gross, areaM2: q.netAreaM2, currency: q.currency },
@@ -415,6 +414,54 @@ export async function deleteOrder(order: Order) {
     [`orders_active/${order.id}`]: null,
     [`orders_history/${order.id}`]: null,
   });
+}
+
+/** Permanently deletes an order by id (records + attachments). Used by the Kanban board. */
+export async function deleteOrderById(id: string) {
+  let attachments: Attachment[] = [];
+  try {
+    const snap = await get(ref(db, `orders/${id}`));
+    const raw = snap.exists() ? (snap.val() as Record<string, unknown>) : null;
+    attachments = mapToList<Attachment>(raw?.attachments);
+  } catch {
+    // If the order can't be read, still remove the records.
+  }
+  await Promise.allSettled(attachments.map((a) => deleteObject(storageRef(storage, a.path))));
+  await update(ref(db), {
+    [`orders/${id}`]: null,
+    [`orders_active/${id}`]: null,
+    [`orders_history/${id}`]: null,
+  });
+}
+
+/**
+ * Changes an order's status by id (used by the Kanban board). Active targets keep the
+ * summary in orders_active; a closed target moves it to orders_history.
+ * The board subscribes to orders_active, so a status edited in the order details and
+ * saved through changeStatus() is reflected there automatically.
+ */
+export async function updateOrderStatus(id: string, status: OrderStatus, by?: string) {
+  const now = Date.now();
+  const active = isActiveStatus(status);
+  const base = `orders/${id}`;
+  const logKey = push(ref(db, `${base}/statusLog`)).key as string;
+  const updates: Record<string, unknown> = {
+    [`${base}/status`]: status,
+    [`${base}/updatedAt`]: now,
+    [`${base}/closedAt`]: active ? null : now,
+    [`${base}/statusLog/${logKey}`]: prune({ status, at: now, by }),
+  };
+  if (active) {
+    updates[`orders_active/${id}/status`] = status;
+    updates[`orders_active/${id}/updatedAt`] = now;
+  } else {
+    const snap = await get(ref(db, `orders_active/${id}`));
+    if (snap.exists() && isObj(snap.val())) {
+      updates[`orders_history/${id}`] = prune({ ...(snap.val() as object), status, closedAt: now, updatedAt: now });
+      updates[`orders_active/${id}`] = null;
+    }
+  }
+  await update(ref(db), updates);
 }
 
 // ---------- attachments ----------
