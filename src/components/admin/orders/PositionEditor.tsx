@@ -109,7 +109,12 @@ export default function PositionEditor({
   const anyBuildUp = SIDES.some((s) => p.edges?.[s.key]?.buildUp);
   const hasError = Object.keys(errors).length > 0;
   const dripSides = SIDES.filter((s) => p.drip?.[s.key]).map((s) => s.short);
-  const hint = `${p.thicknessCm || "?"} см · ${edgeSummary(p, pricing)}${dripSides.length ? ` · канал: ${dripSides.join(", ")}` : ""}`;
+  const stone = pricing.stones[stoneKey];
+  const sealM2 = Number(stone?.sealM2) || 0;
+  const sealEdgeM = Number(stone?.sealEdgeM) || 0;
+  const sealRate = sealM2 > 0 ? `${formatMoney(sealM2, currency)}/м²` : sealEdgeM > 0 ? `${formatMoney(sealEdgeM, currency)}/м` : "";
+  const sealed = p.impregnated !== false;
+  const hint = `${p.thicknessCm || "?"} см · ${edgeSummary(p, pricing)}${dripSides.length ? ` · канал: ${dripSides.join(", ")}` : ""}${sealed ? " · импрегниране" : ""}`;
 
   return (
     <>
@@ -218,6 +223,20 @@ export default function PositionEditor({
                         ))}
                     </select>
                   </Field>
+                </div>
+                <div className="pb-2">
+                  <label className="flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-darkGold"
+                      checked={sealed}
+                      onChange={(e) => set({ impregnated: e.target.checked })}
+                    />
+                    Импрегниране / запечатка
+                  </label>
+                  <span className="mt-0.5 block text-xs text-gray-500">
+                    {sealRate ? `${sealRate} · само за тази позиция` : "няма зададена цена за този материал"}
+                  </span>
                 </div>
                 <span className="pb-2 text-xs text-gray-500">Кантове, подлепка, водооткапващи канали, отвори и доплащания за тази позиция.</span>
               </div>

@@ -67,7 +67,7 @@ export async function deleteRequest(r: OrderRequest) {
 // Turns the request into an order in status "Оферта" using today's price list; the admin then reviews and confirms it.
 export async function approveRequest(r: OrderRequest, pricing: PricingSettings): Promise<string> {
   if (r.status === "approved" && r.orderId) return r.orderId;
-  const positions: Position[] = r.positions.map((p, i) => ({ ...structuredClone(p), id: newId(), sort: i }));
+  const positions: Position[] = r.positions.map((p, i) => ({ ...structuredClone(p), id: newId(), sort: i, impregnated: p.impregnated !== false }));
   const services = deriveServices(r.serviceKeys, positions, pricing, () => newId());
   const created = new Date(r.createdAt).toLocaleString("bg-BG");
   const notes = [

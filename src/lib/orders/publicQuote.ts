@@ -191,6 +191,8 @@ export function toPositions(list: PublicPosition[], makeId: (i: number) => strin
     drip: {},
     cutouts: { ...p.cutouts },
     extras: [],
+    // The public calculator always shows impregnation/edge sealing in its indicative price.
+    impregnated: true,
   }));
 }
 

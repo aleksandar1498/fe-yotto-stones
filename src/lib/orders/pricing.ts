@@ -70,6 +70,9 @@ export type Position = {
   cutouts?: Record<string, number>;
   extras?: PositionExtra[];
   notes?: string;
+  // Impregnation / edge sealing for this piece. Undefined = legacy order that was
+  // priced automatically; false/true is an explicit admin choice.
+  impregnated?: boolean;
 };
 
 export type OrderService = { id: string; key: string; label: string; unit: ServiceUnit; unitPrice: number; qty: number };
@@ -123,6 +126,8 @@ export type QuoteInput = {
   sections?: QuoteSection[]; // multi-material orders; when absent every position uses stoneKey/materialPriceM2
   discountPct?: number;
   pricing: PricingSettings;
+  // false = price the same order without any impregnation/edge-sealing lines (the "without" variant).
+  includeSeal?: boolean;
 };
 
 // Seeded from the 2025 xlsx (лв → € at 1.95583), lifted ~8–10 % to 2026 market levels and rounded to friendly numbers.
@@ -314,10 +319,12 @@ export function quotePosition(p: Position, input: Omit<QuoteInput, "positions" |
   }
 
   // Sealing is charged on the finished stone only – never on the waste the client doesn't receive.
-  if (num(stone?.sealM2) > 0) {
+  // It is opt-in per position (undefined = legacy order, which was always sealed).
+  const sealed = p.impregnated !== false && input.includeSeal !== false;
+  if (sealed && num(stone?.sealM2) > 0) {
     lines.push(line("seal_m2", "Импрегниране (запечатка)", (pieceArea + stripArea) * qty, "м²", num(stone?.sealM2)));
   }
-  if (num(stone?.sealEdgeM) > 0 && edgeM > 0) {
+  if (sealed && num(stone?.sealEdgeM) > 0 && edgeM > 0) {
     lines.push(line("seal_edge", "Запечатка чело", edgeM, "м", num(stone?.sealEdgeM)));
   }
 

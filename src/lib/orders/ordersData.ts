@@ -77,6 +77,10 @@ export type StatusLogEntry = { status: OrderStatus; at: number; by?: string };
 
 export type OrderTotals = { net: number; vat: number; gross: number; areaM2: number; currency: string };
 
+// When an order contains impregnation, the admin prices it both ways and picks the
+// variant that goes on the documents ("with" is the default / legacy behaviour).
+export type SealChoice = "with" | "without";
+
 export type Order = {
   id: string;
   number: number;
@@ -93,6 +97,7 @@ export type Order = {
   dueDate?: string;
   doc?: DocOverrides;
   pricing: PricingSettings;
+  sealChoice?: SealChoice;
   totals: OrderTotals;
   attachments: Attachment[];
   statusLog: StatusLogEntry[];
@@ -215,7 +220,8 @@ export function newId(): string {
 }
 
 export function quoteFor(
-  o: Pick<OrderDraft, "positions" | "services" | "stoneKey" | "materialPriceM2" | "discountPct" | "pricing" | "sections" | "material">
+  o: Pick<OrderDraft, "positions" | "services" | "stoneKey" | "materialPriceM2" | "discountPct" | "pricing" | "sections" | "material">,
+  opts: { includeSeal?: boolean } = {}
 ): OrderQuote {
   return quoteOrder({
     positions: o.positions,
@@ -225,6 +231,7 @@ export function quoteFor(
     sections: ensureSections(o).map((s) => ({ id: s.id, stoneKey: s.stoneKey, materialPriceM2: s.materialPriceM2 })),
     discountPct: o.discountPct,
     pricing: o.pricing,
+    includeSeal: opts.includeSeal,
   });
 }
 
@@ -338,7 +345,8 @@ export async function saveOrder(draft: OrderDraft, existing?: Order | null): Pro
   const ids = new Set(sections.map((s) => s.id));
   const positions = draft.positions.map((p) => (p.sectionId && ids.has(p.sectionId) ? p : { ...p, sectionId: primary.id }));
   const doc = cleanDoc(draft.doc);
-  const q = quoteFor({ ...draft, sections, positions });
+  const sealChoice: SealChoice = draft.sealChoice === "without" ? "without" : "with";
+  const q = quoteFor({ ...draft, sections, positions }, { includeSeal: sealChoice !== "without" });
   const order: Order = {
     ...draft,
     material: primary.material,
@@ -347,6 +355,7 @@ export async function saveOrder(draft: OrderDraft, existing?: Order | null): Pro
     sections,
     positions,
     doc,
+    sealChoice,
     id,
     number,
     status: existing?.status ?? draft.status ?? "quoted",
@@ -374,6 +383,7 @@ export async function saveOrder(draft: OrderDraft, existing?: Order | null): Pro
     [`${base}/dueDate`]: order.dueDate || null,
     [`${base}/doc`]: order.doc ? prune(order.doc) : null,
     [`${base}/pricing`]: prune(order.pricing),
+    [`${base}/sealChoice`]: order.sealChoice ?? "with",
     [`${base}/totals`]: order.totals,
     [`${base}/createdAt`]: order.createdAt,
     [`${base}/updatedAt`]: order.updatedAt,

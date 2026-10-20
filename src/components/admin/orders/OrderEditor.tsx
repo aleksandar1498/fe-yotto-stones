@@ -61,7 +61,21 @@ const card = "rounded-xl bg-white p-5 shadow-sm";
 const sectionTitle = "mb-4 text-sm font-semibold uppercase tracking-[0.15em] text-darkGold";
 
 function blankPosition(sort: number, thicknessCm: number, type: Position["type"] = "windowsill", sectionId?: string): Position {
-  return { id: newId(), sort, sectionId, type, lengthCm: 0, depthCm: 0, thicknessCm, qty: 1, edges: {}, drip: {}, cutouts: {}, extras: [] };
+  return {
+    id: newId(),
+    sort,
+    sectionId,
+    type,
+    lengthCm: 0,
+    depthCm: 0,
+    thicknessCm,
+    qty: 1,
+    edges: {},
+    drip: {},
+    cutouts: {},
+    extras: [],
+    impregnated: false,
+  };
 }
 
 function blankSection(pricing: PricingSettings, sort: number): MaterialSection {
@@ -96,6 +110,7 @@ function blankDraft(pricing: PricingSettings): OrderDraft {
     discountPct: 0,
     notes: "",
     dueDate: "",
+    sealChoice: "with",
     pricing,
   };
 }
@@ -118,6 +133,7 @@ function draftFrom(o: Order): OrderDraft {
     dueDate: o.dueDate ?? "",
     doc: o.doc,
     pricing: o.pricing,
+    sealChoice: o.sealChoice ?? "with",
     closedAt: o.closedAt,
   });
 }
@@ -144,6 +160,7 @@ export function duplicateDraft(o: Order | OrderDraft, pricing: PricingSettings):
     discountPct: o.discountPct,
     notes: o.notes ?? "",
     dueDate: "",
+    sealChoice: o.sealChoice ?? "with",
     doc: o.doc ? structuredClone(o.doc) : undefined,
     pricing,
   };
@@ -218,7 +235,14 @@ export default function OrderEditor({ orderId, template, pricing, groups, onClos
     return () => window.removeEventListener("beforeunload", h);
   }, [dirty]);
 
-  const quote = useMemo(() => (draft ? quoteFor(draft) : null), [draft]);
+  const sealChoice = draft?.sealChoice === "without" ? "without" : "with";
+  const quote = useMemo(
+    () => (draft ? quoteFor(draft, { includeSeal: sealChoice !== "without" }) : null),
+    [draft, sealChoice]
+  );
+  // Both variants are priced while editing so the admin can choose the final total.
+  const quoteWithSeal = useMemo(() => (draft ? quoteFor(draft, { includeSeal: true }) : null), [draft]);
+  const quoteWithoutSeal = useMemo(() => (draft ? quoteFor(draft, { includeSeal: false }) : null), [draft]);
   const liveErrors = useMemo(() => (draft && errors ? validate(draft) : null), [draft, errors]);
 
   if (loadError) return <ErrorBox>Грешка при зареждане на поръчката: {loadError}</ErrorBox>;
@@ -241,6 +265,8 @@ export default function OrderEditor({ orderId, template, pricing, groups, onClos
   const pricingChanged = (draft.pricing.updatedAt ?? 0) !== (pricing.updatedAt ?? 0);
   const customized = !!draft.pricing.customizedAt;
   const sections = draft.sections ?? ensureSections(draft);
+  const hasSealVariant =
+    !!quoteWithSeal && !!quoteWithoutSeal && Math.abs(quoteWithSeal.gross - quoteWithoutSeal.gross) > 0.004;
 
   const update = (patch: Partial<OrderDraft>) => {
     setDraft((d) => (d ? { ...d, ...patch } : d));
@@ -280,8 +306,22 @@ export default function OrderEditor({ orderId, template, pricing, groups, onClos
     [copy[i], copy[j]] = [copy[j], copy[i]];
     update(withSections(copy));
   };
-  const addPosition = (sectionId: string, t: Position["type"]) =>
-    setPositions((l) => [...l, blankPosition(l.length, t === "countertop" && defaultThickness < 3 ? 3 : defaultThickness, t, sectionId)]);
+  const addPosition = (sectionId: string, t: Position["type"]) => {
+    // New pieces inherit the material's "all impregnated" state; mixed/empty sections start off.
+    const own = draft.positions.filter((p) => p.sectionId === sectionId);
+    const inheritSeal = own.length > 0 && own.every((p) => p.impregnated !== false);
+    setPositions((l) => [
+      ...l,
+      {
+        ...blankPosition(l.length, t === "countertop" && defaultThickness < 3 ? 3 : defaultThickness, t, sectionId),
+        impregnated: inheritSeal,
+      },
+    ]);
+  };
+
+  // Parent switch for one material: on = every position, off = per-position control.
+  const setSectionSealed = (sectionId: string, value: boolean) =>
+    setPositions((l) => l.map((p) => (p.sectionId === sectionId ? { ...p, impregnated: value } : p)));
 
   const repriceWithCurrent = () =>
     update({
@@ -535,6 +575,8 @@ export default function OrderEditor({ orderId, template, pricing, groups, onClos
               const group = groups.find((g) => g.key === s.material.groupKey);
               const own = draft.positions.filter((p) => p.sectionId === s.id);
               const sq = quote.sections.find((x) => x.sectionId === s.id);
+              const allSealed = own.length > 0 && own.every((p) => p.impregnated !== false);
+              const someSealed = own.some((p) => p.impregnated !== false);
               return (
                 <div key={s.id} className={`${card} space-y-4 border-l-4 border-royalGold`}>
                   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -542,7 +584,21 @@ export default function OrderEditor({ orderId, template, pricing, groups, onClos
                       Материал {si + 1}
                       {s.material.label ? <span className="ml-2 normal-case tracking-normal text-obsidian">{s.material.label}</span> : null}
                     </h3>
-                    <div className="flex items-center gap-2 text-sm">
+                    <div className="flex flex-wrap items-center gap-2 text-sm">
+                      <label
+                        className="flex items-center gap-1.5 text-xs text-gray-600"
+                        title="Импрегниране/запечатка за всички позиции от този материал"
+                      >
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 accent-darkGold"
+                          checked={allSealed}
+                          disabled={readOnly || own.length === 0}
+                          onChange={(e) => setSectionSealed(s.id, e.target.checked)}
+                        />
+                        Импрегниране
+                        {someSealed && !allSealed && <span className="text-amber-700">(част.)</span>}
+                      </label>
                       <span className="text-gray-500">
                         {own.length} поз. · {formatNum(sq?.billableAreaM2 ?? 0, 3)} м² ·{" "}
                         <strong className="text-obsidian">{formatMoney(sq?.total ?? 0, quote.currency)}</strong>
@@ -916,6 +972,43 @@ export default function OrderEditor({ orderId, template, pricing, groups, onClos
                 <button className="font-semibold underline" onClick={repriceWithCurrent}>
                   Преизчисли с текущите цени
                 </button>
+              </div>
+            )}
+            {hasSealVariant && quoteWithSeal && quoteWithoutSeal && (
+              <div className="mb-4 space-y-2 rounded-lg border border-royalGold/40 bg-royalGold/5 p-3">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-xs font-semibold uppercase tracking-wider text-darkGold">Крайна сума</span>
+                  <span className="text-[11px] text-gray-500">{quote.vatPct > 0 ? "с ДДС" : "без ДДС"}</span>
+                </div>
+                <label className="flex cursor-pointer items-center justify-between gap-2 text-sm">
+                  <span className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="sealChoice"
+                      className="accent-darkGold"
+                      checked={sealChoice === "without"}
+                      onChange={() => update({ sealChoice: "without" })}
+                      disabled={readOnly}
+                    />
+                    Без импрегниране
+                  </span>
+                  <strong className="whitespace-nowrap text-obsidian">{formatMoney(quoteWithoutSeal.gross, quote.currency)}</strong>
+                </label>
+                <label className="flex cursor-pointer items-center justify-between gap-2 text-sm">
+                  <span className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name="sealChoice"
+                      className="accent-darkGold"
+                      checked={sealChoice === "with"}
+                      onChange={() => update({ sealChoice: "with" })}
+                      disabled={readOnly}
+                    />
+                    С импрегниране
+                  </span>
+                  <strong className="whitespace-nowrap text-obsidian">{formatMoney(quoteWithSeal.gross, quote.currency)}</strong>
+                </label>
+                <p className="text-[11px] text-gray-500">Документите за клиента се изготвят по избрания вариант.</p>
               </div>
             )}
             <PriceBreakdown

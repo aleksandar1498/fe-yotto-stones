@@ -74,7 +74,10 @@ export default function PrintOrder() {
       cancelled = true;
     };
   }, [imageRefs]);
-  const quote = useMemo(() => (order ? quoteFor(order) : null), [order]);
+  const quote = useMemo(
+    () => (order ? quoteFor(order, { includeSeal: order.sealChoice !== "without" }) : null),
+    [order]
+  );
 
   useEffect(() => {
     if (!order) return;
