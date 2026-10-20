@@ -211,6 +211,7 @@ export default function OrderEditor({ orderId, template, pricing, groups, onClos
   const [pricingOpen, setPricingOpen] = useState(false);
   const [defaultThickness, setDefaultThickness] = useState(2);
   const [servicePick, setServicePick] = useState("");
+  const [focusPositionId, setFocusPositionId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!orderId) return;
@@ -757,14 +758,22 @@ export default function OrderEditor({ orderId, template, pricing, groups, onClos
                                 readOnly={readOnly}
                                 attachmentsCount={attachmentsFor(p.id)}
                                 onChange={(np) => setPositions((l) => l.map((x) => (x.id === np.id ? np : x)))}
-                                onDuplicate={() =>
+                                onDuplicate={() => {
+                                  const copy = { ...structuredClone(p), id: newId() };
                                   setPositions((l) => {
                                     const at = l.findIndex((x) => x.id === p.id);
-                                    const copy = { ...structuredClone(p), id: newId() };
                                     return [...l.slice(0, at + 1), copy, ...l.slice(at + 1)];
-                                  })
-                                }
+                                  });
+                                  setFocusPositionId(copy.id);
+                                }}
                                 onDelete={() => setPositions((l) => l.filter((x) => x.id !== p.id))}
+                                onFocusMove={(dir) => {
+                                  const i = draft.positions.findIndex((x) => x.id === p.id);
+                                  const target = i >= 0 ? draft.positions[i + dir] : undefined;
+                                  if (target) setFocusPositionId(target.id);
+                                }}
+                                focusRequest={focusPositionId === p.id}
+                                onFocusHandled={() => setFocusPositionId(null)}
                                 onMove={(dir) =>
                                   setPositions((l) => {
                                     const other = own[i + dir];

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import {
   PRODUCT_TYPES,
   SIDES,
@@ -33,6 +33,11 @@ type Props = {
   onDuplicate: () => void;
   onDelete: () => void;
   onMove: (dir: -1 | 1) => void;
+  /** Move focus to the previous/next position's length field. */
+  onFocusMove?: (dir: -1 | 1) => void;
+  /** Focus the length field once (used after Ctrl+D duplicates the row). */
+  focusRequest?: boolean;
+  onFocusHandled?: () => void;
 };
 
 const iconBtn = "rounded-md px-2 py-1 text-sm text-gray-500 transition hover:bg-gray-100 hover:text-obsidian disabled:opacity-30";
@@ -95,8 +100,19 @@ export default function PositionEditor({
   onDuplicate,
   onDelete,
   onMove,
+  onFocusMove,
+  focusRequest,
+  onFocusHandled,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const rowRef = useRef<HTMLTableRowElement>(null);
+  useEffect(() => {
+    if (!focusRequest) return;
+    const input = rowRef.current?.querySelector<HTMLInputElement>('input[aria-label="Дължина"]');
+    input?.focus();
+    input?.select();
+    onFocusHandled?.();
+  }, [focusRequest, onFocusHandled]);
   const set = (patch: Partial<Position>) => onChange({ ...p, ...patch });
   const setEdge = (side: Side, patch: { profile?: string; buildUp?: boolean }) => {
     const cur = p.edges?.[side] ?? { profile: "" };
@@ -115,10 +131,28 @@ export default function PositionEditor({
   const sealRate = sealM2 > 0 ? `${formatMoney(sealM2, currency)}/м²` : sealEdgeM > 0 ? `${formatMoney(sealEdgeM, currency)}/м` : "";
   const sealed = p.impregnated !== false;
   const hint = `${p.thicknessCm || "?"} см · ${edgeSummary(p, pricing)}${dripSides.length ? ` · канал: ${dripSides.join(", ")}` : ""}${sealed ? " · импрегниране" : ""}`;
+  const onRowKeyDown = (e: KeyboardEvent<HTMLTableRowElement>) => {
+    if (readOnly) return;
+    const mod = e.ctrlKey || e.metaKey;
+    if (mod && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "d") {
+      e.preventDefault();
+      e.stopPropagation();
+      onDuplicate();
+      return;
+    }
+    if (mod || e.shiftKey || e.altKey) return;
+    if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+    // Only text/number inputs: selects, checkboxes, textareas and buttons keep native arrow behaviour.
+    const target = e.target as HTMLElement;
+    if (target.tagName !== "INPUT" || (target as HTMLInputElement).type === "checkbox") return;
+    e.preventDefault();
+    e.stopPropagation();
+    onFocusMove?.(e.key === "ArrowUp" ? -1 : 1);
+  };
 
   return (
     <>
-      <tr className={`border-b border-gray-100 ${hasError ? "bg-red-50/50" : "hover:bg-royalGold/5"}`}>
+      <tr ref={rowRef} onKeyDown={onRowKeyDown} className={`border-b border-gray-100 ${hasError ? "bg-red-50/50" : "hover:bg-royalGold/5"}`}>
         <td className="py-2 pl-1 pr-2 align-middle">
           <span className="flex h-7 w-7 items-center justify-center rounded-full bg-obsidian text-xs font-bold text-royalGold">
             {number ?? index + 1}
@@ -156,18 +190,18 @@ export default function PositionEditor({
         </td>
         <td className="w-[110px] py-2 pr-2 align-middle">
           <Cm>
-            <NumInput value={p.lengthCm} min={0} onChange={(n) => set({ lengthCm: n ?? 0 })} disabled={readOnly} aria-label="Дължина" />
+            <NumInput required value={p.lengthCm} min={0} onChange={(n) => set({ lengthCm: n ?? 0 })} disabled={readOnly} aria-label="Дължина" />
           </Cm>
           {errors.lengthCm && <span className="mt-1 block text-xs text-red-600">{errors.lengthCm}</span>}
         </td>
         <td className="w-[110px] py-2 pr-2 align-middle">
           <Cm>
-            <NumInput value={p.depthCm} min={0} onChange={(n) => set({ depthCm: n ?? 0 })} disabled={readOnly} aria-label="Ширина" />
+            <NumInput required value={p.depthCm} min={0} onChange={(n) => set({ depthCm: n ?? 0 })} disabled={readOnly} aria-label="Ширина" />
           </Cm>
           {errors.depthCm && <span className="mt-1 block text-xs text-red-600">{errors.depthCm}</span>}
         </td>
         <td className="w-[90px] py-2 pr-2 align-middle">
-          <NumInput value={p.qty} integer min={0} onChange={(n) => set({ qty: n ?? 0 })} disabled={readOnly} aria-label="Брой" />
+          <NumInput required value={p.qty} integer min={0} onChange={(n) => set({ qty: n ?? 0 })} disabled={readOnly} aria-label="Брой" />
           {errors.qty && <span className="mt-1 block text-xs text-red-600">{errors.qty}</span>}
         </td>
         <td className="whitespace-nowrap py-2 pr-2 text-right align-middle font-semibold text-obsidian">
@@ -193,7 +227,7 @@ export default function PositionEditor({
                 <button className={iconBtn} onClick={() => onMove(1)} disabled={index === count - 1} title="Надолу" aria-label="Премести надолу">
                   ↓
                 </button>
-                <button className={iconBtn} onClick={onDuplicate} title="Дублирай позицията" aria-label="Дублирай позицията">
+                <button className={iconBtn} onClick={onDuplicate} title="Дублирай позицията (Ctrl+D)" aria-label="Дублирай позицията (Ctrl+D)">
                   ⧉
                 </button>
                 <button className={`${iconBtn} hover:text-red-700`} onClick={onDelete} title="Изтрий" aria-label="Изтрий позицията">
@@ -206,7 +240,7 @@ export default function PositionEditor({
       </tr>
 
       {expanded && (
-        <tr className="border-b border-gray-100 bg-gray-50/60">
+        <tr onKeyDown={onRowKeyDown} className="border-b border-gray-100 bg-gray-50/60">
           <td colSpan={POSITION_COLUMNS} className="px-2 py-4">
             <fieldset disabled={readOnly} className="space-y-5">
               <div className="flex flex-wrap items-end gap-4">

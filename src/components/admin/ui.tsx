@@ -77,12 +77,15 @@ export function Field({
 }
 
 // Decimal input that accepts "," and keeps partial input like "1." while typing; emits null when empty/invalid.
+// While focused an empty field stays empty (no forced 0); on blur it commits 0 and, when required,
+// shows an error state on the field.
 export function NumInput({
   value,
   onChange,
   className = inputClass,
   integer = false,
   min,
+  required = false,
   ...rest
 }: {
   value: number | null | undefined;
@@ -90,31 +93,54 @@ export function NumInput({
   className?: string;
   integer?: boolean;
   min?: number;
+  required?: boolean;
   placeholder?: string;
   disabled?: boolean;
   "aria-label"?: string;
   title?: string;
 }) {
   const [text, setText] = useState(value == null ? "" : String(value));
+  const [focused, setFocused] = useState(false);
+  const [invalid, setInvalid] = useState(false);
 
   useEffect(() => {
+    if (focused) return;
     const parsed = text.trim() === "" ? null : Number(text.replace(",", "."));
-    if (parsed !== value) setText(value == null ? "" : String(value));
+    if (parsed !== value) {
+      setText(value == null ? "" : String(value));
+      if (typeof value === "number" && value > 0) setInvalid(false);
+    }
     // Only resync when the external value changes, not on every keystroke.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [value]);
+  }, [value, focused]);
 
   return (
     <input
       {...rest}
       type="text"
       inputMode={integer ? "numeric" : "decimal"}
-      className={className}
+      className={`${className}${invalid ? " !border-red-500 bg-red-50 text-red-700" : ""}`}
+      aria-invalid={invalid || undefined}
       value={text}
+      onFocus={() => {
+        setFocused(true);
+      }}
+      onBlur={() => {
+        setFocused(false);
+        const parsed = text.trim() === "" ? null : Number(text.replace(",", "."));
+        if (parsed == null || !Number.isFinite(parsed) || (required && parsed <= 0)) {
+          setInvalid(true);
+          if (parsed == null || !Number.isFinite(parsed)) onChange(null);
+          return;
+        }
+        setInvalid(false);
+      }}
       onChange={(e) => {
         const raw = e.target.value.replace(/[^\d.,-]/g, "");
         setText(raw);
-        if (raw.trim() === "") return onChange(null);
+        setInvalid(false);
+        // Keep the field empty while typing; the model is committed on blur.
+        if (raw.trim() === "") return;
         let n = Number(raw.replace(",", "."));
         if (!Number.isFinite(n)) return;
         if (integer) n = Math.trunc(n);
