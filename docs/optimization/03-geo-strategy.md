@@ -31,7 +31,7 @@ Yotto currently fails **2 (rendering)** and **5 (originality)** on its 184 most 
 | HTTP status / soft 404 | Unknown IDs return **200** + fallback | Index bloat/confusion |
 | Sitemap | 194 URLs, 184 images; `lastModified` always “now” | Discoverable, but freshness is noisy |
 | Structured data | Product (no offers), LocalBusiness (minimal), CollectionPage, Breadcrumb, Service | Partial; not answer-grade |
-| Content originality | **118/184 descriptions + images from `varovik-granit.com`; 4/4 sampled = 100 % token overlap** | Duplicate, non-citable, legal risk |
+| Content originality | **118/184 descriptions inherited from partner Varovik (permitted); public source + 839 gallery URLs removed from RTDB 20 Oct 2026; 4/4 sampled descriptions still 100 % overlapping** | Duplicate text remains non-citable; rewrite |
 | Entity clarity | “Yotto Stones” vs “Yotov Stone”; legal “Ц-М ЙОТТО ЕООД”; 3 phone numbers | Ambiguous entity |
 | Answer content | No FAQ, price guide, comparisons, care/installation guides | Large content gap |
 
@@ -44,7 +44,7 @@ Yotto currently fails **2 (rendering)** and **5 (originality)** on its 184 most 
 1. **One page answers one commercial question.** A page about “подпрозоречни первази от мрамор в София” must answer size, price range, process, lead time, warranty and next step.
 2. **Facts before adjectives.** Replace “лукс и елегантност” with dimensions, materials, prices, timelines, guarantees, project evidence.
 3. **Every claim is verifiable.** Reviews, warranty, years, projects, certifications — link to evidence or remove.
-4. **Original > aggregated.** AI engines and Google reward unique data; copied Varovik copy is a liability.
+4. **Original > aggregated.** AI engines and Google reward unique data; duplicated partner copy is still a citation liability.
 5. **Entity consistency everywhere.** Same name, address, phones, description, URLs across site, GBP, OLX, directories, schema.
 6. **No artificial GEO.** No fake reviews, invented prices, fake locations, cloaking or mass-generated pages.
 7. **Measure or don’t claim.** AI attribution is noisy; use a fixed prompt panel + referral/lead fields, and label uncertainty.
@@ -71,7 +71,7 @@ Yotto currently fails **2 (rendering)** and **5 (originality)** on its 184 most 
 - H1: grade + material type (e.g., „Верде – мрамор“); remove the duplicate group H1.
 - Answer block: what it is, best uses, appearance, durability, care, price band (if publishable), availability.
 - Facts: origin, surface, thickness options, slab sizes, applications, indoor/outdoor, slip resistance (if known), lead time.
-- Unique 150–300-word expert description (replace Varovik copy).
+- Unique 150–300-word expert description (replace inherited copy).
 - “Where it works” (kitchen, bathroom, sills, stairs, fireplace, façade).
 - “What affects the price”.
 - FAQ (4–6).
@@ -336,7 +336,7 @@ Direct AI interfaces were **not accessible** in this environment (Perplexity 403
 1. Server-render material detail + group pages (name, description, specs, related links, H1).
 2. Exactly one H1; remove duplicate PageHeader H1.
 3. Crawlable internal links from `/materials` and group pages.
-4. Replace copied descriptions for **top 20 materials** with original copy + specs.
+4. Replace inherited descriptions for **top 20 materials** with original copy + specs.
 5. Add `LocalBusiness`/`Organization` graph with NAP, hours, geo, sameAs, areaServed.
 6. Add `llms.txt`; explicit AI-crawler policy.
 7. Install GSC + GA4 + server-side lead source; verify indexing.

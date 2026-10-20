@@ -110,23 +110,23 @@ Live server-HTML observations (20 Oct 2026):
 | Server-rendered content | **Fails on 184 product pages + 5 category pages** | Critical blocker |
 | Crawlable internal links to materials | **No** on `/materials`; only navbar dropdown (client) and sitemap | Critical blocker |
 | Structured data | Product/category/breadcrumb present; no offers/FAQ/Organization | Partial |
-| Content uniqueness | **118/184 material descriptions and images sourced from `varovik-granit.com`**; sampled 4 pages: 100 % token overlap | Critical: duplicate, non-citable content |
+| Content uniqueness | **118/184 descriptions inherited from raw-material partner Varovik (permitted); public source + 839 gallery URLs removed 20 Oct 2026; 4/4 sampled descriptions still 100 % overlapping** | Duplicate text remains non-citable; rewrite for GEO |
 | Entity clarity | Brand “Yotto Stones” vs “Yotov Stone” (Mezdra B2B quarry); legal name “Ц-М ЙОТТО ЕООД”; 3 phone numbers | Weak/ambiguous |
 | Third-party corroboration | Google 4.9/28, Cybo, ibusiness, ZlatnaFirma, OLX | Exists but not linked/claimed on site |
 | AI referral measurement | None (no analytics/UTM/referrer tracking) | Missing |
 | Answer-oriented content | No FAQ, pricing guide, comparisons, care guides, projects | Missing |
 
-**Verdict:** robots are open, but AI engines cannot retrieve the product content that would make Yotto citable. The content that does exist is duplicated from a stronger competitor. GEO is currently **not competitive despite permissive robots**.
+**Verdict:** robots are open, but AI engines cannot retrieve the product content that would make Yotto citable. The content that does exist is inherited from a partner and still duplicated; it is not citable. GEO is currently **not competitive despite permissive robots**.
 
 ---
 
 ## 6. Content & catalogue
 
 - 5 material groups, **184 materials**. Images hosted in Firebase Storage.
-- 118 materials carry `sourceUrl`/`sourceImageUrl`; **all 236 references point to `varovik-granit.com`**. Examples: Verde, Tasos Gold, Volokas, Krit — exact description substring + 100 % token overlap.
-- This creates: duplicate-content risk, no unique citation value, copyright/reputation risk, and a structural dependency on a direct Sofia competitor.
+- Historically, 118 materials carried `sourceUrl`/`sourceImageUrl` and 839 `galleryImageUrls` referencing `varovik-granit.com`. **Varovik is a raw-material partner**; image use is permitted. On **20 Oct 2026** those public references (236 source fields + 839 gallery URLs) were removed from RTDB. Firebase-hosted `imageUrl` copies remain and will be replaced with Yotto-owned photos.
+- The material **descriptions** are still inherited from Varovik (e.g., Verde, Tasos Gold, Volokas, Krit — exact substring + 100 % token overlap in 4/4 samples). This remains duplicate text and a GEO/SEO limitation, not a permission issue: rewrite with original copy.
 - Home content: generic “quality and elegance” messaging, 7 product categories (windowsills, countertops, fireplace, stairs, thresholds, wall/floor cladding, other), 4-step process, materials grid, contact block. **No prices, no cases, no reviews, no team/workshop evidence, no guarantees.**
-- External hotlinks: About background from `granitmar.bg`; two offering images + one process image from `marmogranito.it`. Third-party/competitor assets; legal and performance risk.
+- The site still hotlinks two third-party images from `marmogranito.it` (home offerings/process) and one background from `granitmar.bg`; replace with owned assets.
 - Footer: **“© 2026 AS Tech”** (wrong legal entity), newsletter form is a `console.log` stub, no NAP/phone/address in footer, “Условия за ползване” points to `/privacy-policy#data-usage`.
 - Material overview cards use `alt="Relume placeholder image 1"`; navbar dropdown images have no alt.
 - English UI fragments leak (“Loading materials...”).
@@ -199,7 +199,7 @@ Live server-HTML observations (20 Oct 2026):
 **P0 — blocks visibility and/or leads**
 1. **184 material pages + 5 category pages are not server-rendered** (fallback/loading HTML, no H1, no internal links).
 2. **No online lead capture**: calculator disabled, contact page has no form, CTA dead-ends.
-3. **118 product descriptions/images duplicated from a direct competitor** (Varovik).
+3. **118 material descriptions inherited from raw-material partner Varovik**; public source/gallery references removed from Firebase on 20 Oct 2026, but the text is still duplicated and needs original copy.
 4. **No analytics/attribution** (GA4/GSC/events), so no baseline or learning loop.
 
 **P1 — high impact**
@@ -221,7 +221,7 @@ Live server-HTML observations (20 Oct 2026):
 ## 13. Evidence & limitations
 
 - Live fetches: `https://www.yottostones-bg.com` (home, `/materials`, `/materials/1`, `/materials/1/1`, `/contact`, `/edges`, `/privacy-policy`, `/robots.txt`, `/sitemap.xml`), 20 Oct 2026.
-- RTDB aggregates: catalogue (184 materials, 118 source URLs), document settings, order/request counts.
+- RTDB aggregates: catalogue (184 materials; source/gallery URL fields removed 20 Oct 2026), document settings, order/request counts.
 - Competitor pages fetched 20 Oct 2026 (see `02`).
 - DuckDuckGo HTML (Bing index) used as an index proxy because Google/Perplexity/ChatGPT interfaces were blocked in this environment. AI-answer visibility could not be directly measured; a manual protocol is defined in `03`.
 - No GA4/GSC/CrUX/PSI data. No customer interviews or session recordings yet.

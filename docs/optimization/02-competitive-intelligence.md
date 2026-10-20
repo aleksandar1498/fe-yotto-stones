@@ -18,13 +18,13 @@
 ### Sofia — direct
 | Competitor | Positioning (observed) | Evidence |
 |---|---|---|
-| **Гранити Левенти / varovik-granit.com** | Importer + fabricator; granite, marble, limestone, travertine, technical stone; projects, blog, Google reviews on site | Sofia, ул. „Чепинско шосе“ 80; 10+ years claimed; 46 images (13 no alt); 1 H1; no schema; blog/projects/reviews |
+| **Гранити Левенти / varovik-granit.com** | Raw-material partner/importer + fabricator (supplies Yotto; also sells finished products); granite, marble, limestone, travertine, technical stone; projects, blog, reviews | Sofia, ул. „Чепинско шосе“ 80; 10+ years claimed; 46 images (13 no alt); 1 H1; no schema; blog/projects/reviews |
 | **Raimar / raimar.bg** | Family business 30+ years; garden/outdoor + stone; 700+ products; e-commerce, samples, showroom | Sofia showroom (ул. Борис Арсов 9), production Kresna; 5,913 words home; 2 H1s; 39 H2s; 204 links; FAQ + blog + 2 forms; free samples |
 | **Stone Build / stonebuild.bg** | Kitchen countertops, own production in Sofia; heavy long-form SEO | 24,644 words on the granite-countertop page; 184 images (74 no alt); 2 H1s; no schema; blog/price mentions |
 | **SMG Stone / stilmramorigranit.com** | Premium stone fabrication since 2005 | 696 words; 1 H1; `Organization` + `WebSite` schema; 24 images; no price/FAQ/blog/form |
 | **Pietra / pietra.bg** | Stone marketplace/importer, 50+ manufacturers; design + installation | Sofia; e-commerce; 3,080 words home; 198 images; 4 H1s; no schema; prices |
 | **Assemblix / assemblix.bg** | Kitchen countertop production/installation | Appears in countertop SERPs; service page |
-| **Yotto Stones** | Fabricator, 184 materials, order/cutlist tooling | 184 material pages, **client-rendered only**; no form/calculator; no blog/FAQ/prices; 118 copied descriptions |
+| **Yotto Stones** | Fabricator, 184 materials, order/cutlist tooling | 184 material pages, **client-rendered only**; no form/calculator; no blog/FAQ/prices; 118 descriptions inherited from partner (public refs removed 20 Oct 2026) |
 
 ### Plovdiv — direct
 | Competitor | Positioning | Evidence |
@@ -95,7 +95,7 @@ DuckDuckGo HTML (Bing index), Bulgarian locale, 20 Oct 2026:
 | Reviews on site | **No** (4.9/28 off-site) | Yes | Yes (Google links) | No | No | No |
 | FAQ | No | Yes | Yes | No | No | No |
 
-**Conclusion:** robots are not the bottleneck; **retrievability and originality are**. Yotto’s content is both invisible (client-only) and duplicated (Varovik). Plovdiv Mramor is the only observed local adopter of `llms.txt`; others rely on server-rendered pages, long-form content and schema-lite structures.
+**Conclusion:** robots are not the bottleneck; **retrievability and originality are**. Yotto’s content is both invisible (client-only) and duplicated (inherited from partner Varovik). Plovdiv Mramor is the only observed local adopter of `llms.txt`; others rely on server-rendered pages, long-form content and schema-lite structures.
 
 ---
 
@@ -153,7 +153,7 @@ DuckDuckGo HTML (Bing index), Bulgarian locale, 20 Oct 2026:
 | SERP presence/absence | DuckDuckGo HTML (Bing index), BG | 20 Oct 2026 | Medium (single engine/day) |
 | Yotto 4.9/28 reviews | ZlatnaFirma company page (Google Maps aggregation; scan 12 Apr 2026) | 12 Apr 2026 | Medium — verify in GBP |
 | Yotto OLX prices | OLX ad 141630371 | 19 Oct 2026 | High |
-| Yotto descriptions copied from Varovik | RTDB `sourceUrl` fields + live page comparison; 4 samples 100 % token overlap | 20 Oct 2026 | High |
+| Yotto descriptions originated from partner Varovik | RTDB history + live comparison; public source/gallery refs removed 20 Oct 2026; 4 samples still 100 % token overlap | 20 Oct 2026 | High |
 | Competitor addresses/locations | Competitor contact pages | 20 Oct 2026 | High |
 | `llms.txt` presence | Direct HTTP checks | 20 Oct 2026 | High |
 | AI answer visibility | Not directly accessible (403/consent) | 20 Oct 2026 | **Not measured** |

@@ -75,7 +75,7 @@ export default function MaterialForm({
       if (file) image = await uploadMaterialImage(group.category, file, name);
 
       const id = await saveMaterial(group.key, {
-        // Keep fields this form doesn't edit (sourceUrl, sourceImageUrl, ...).
+        // Keep fields this form doesn't edit (gallery, grain, trending, ...).
         ...material,
         id: material?.id,
         name,

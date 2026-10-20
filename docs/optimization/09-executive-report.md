@@ -11,11 +11,11 @@
 
 1. **184 material pages and 5 category pages are effectively invisible to crawlers.** Server HTML shows “Loading materials...” / “Материалът не беше намерен...”, with no H1, no specs and no internal links. Content only appears after JavaScript + Firebase + Redux.
 2. **There is no online lead capture.** The calculator is disabled (`settings/priceCalculator=false`), the contact page has no form, and “Поискай оферта” ends on a phone/email page.
-3. **118 of 184 product descriptions and images are duplicated from a direct Sofia competitor** (Varovik); sampled pages show 100 % text overlap. This is an SEO/GEO and legal/reputation liability.
+3. **118 of 184 product descriptions were inherited from raw-material partner Varovik**; image use is permitted. The public source/gallery URLs were removed from Firebase on **20 Oct 2026**, but the text is still duplicated — a GEO/SEO limitation, not a legal issue.
 4. **There is no analytics or attribution** (no GA4/GTM, no GSC API, no lead source). The business cannot see what works.
 5. **Trust and price signals are invisible.** 4.9/28 reviews, 24-month warranty, legal entity, 50/14 terms and OLX price anchors exist but are not on the site.
 
-**Largest visibility opportunity.** Making the existing catalogue retrievable and unique. Yotto already has more indexed *potential* (194 sitemap URLs) than most local competitors; it is wasted by client-only rendering and copied copy. Fixing retrieval + originality is the single highest-leverage GEO/SEO move in Sofia.
+**Largest visibility opportunity.** Making the existing catalogue retrievable and unique. Yotto already has more indexed *potential* (194 sitemap URLs) than most local competitors; it is wasted by client-only rendering and duplicate inherited copy. Fixing retrieval + originality is the single highest-leverage GEO/SEO move in Sofia.
 
 **Largest conversion opportunity.** A phone-first quote form + Viber/WhatsApp/callback. The site currently has **zero online lead capture**; even a modest form connected to the existing `order_requests` admin flow converts existing and future traffic.
 
@@ -32,7 +32,7 @@
 | 1 | 184 material + 5 group pages not server-rendered; no H1/links | Additive SSR content block (name, description, specs, links, one H1); then full server split | **Very high** | M | M | Content facts | `curl` shows content; GSC indexed pages; impressions |
 | 2 | No online lead capture | Phone-first quote form → existing `/api/requests`; Viber/WhatsApp/callback | **Very high** | S | L | Consent | Quote submissions, phone/Viber clicks |
 | 3 | No analytics/attribution | GA4 + GTM/Consent Mode + GSC + lead source fields | High | S | L | Legal/consent | Baseline dashboard; source-tagged leads |
-| 4 | 118 copied descriptions/images | Rewrite top 20 → 50 → 184; original photos/specs | **Very high** | M–L | L | Photo rights, content capacity | Unique content; AI citations; no duplicate |
+| 4 | 118 inherited partner descriptions (public refs removed) | Rewrite top 20 → 50 → 184; original photos/specs | **Very high** | M–L | L | Photo rights, content capacity | Unique content; AI citations; no duplicate |
 | 5 | Trust assets invisible | Publish 4.9/28 reviews, 24-month warranty, legal entity, terms | High | S | L | Owner approval | Trust block live; quote start rate |
 | 6 | No service/price pages for commercial intent | 5 service pages + price guide with ranges | **Very high** | M | M | Pricing approval | Rankings/impressions for “цена/плот/перваз” |
 | 7 | No Sofia/Plovdiv local pages | Sofia hub + 2 city×service; Plovdiv after ops sign-off | High | M | M | Ops coverage | Local calls/leads; local pack visibility |
@@ -46,7 +46,7 @@
 
 **1. Essential foundations (weeks 1–4)**
 - Server-render all commercial pages; one H1; crawlable internal links.
-- Replace copied content on top 20 materials.
+- Replace inherited content on top 20 materials.
 - `LocalBusiness`/`Organization` graph with NAP, hours, geo, sameAs, areaServed.
 - `llms.txt` + explicit AI-crawler allow policy; keep admin/api blocked.
 - GSC/GA4/lead source to measure.
@@ -144,7 +144,7 @@ Dependencies: business facts/pricing/photo rights → SSR/content → local page
 
 | Risk | Type | Impact | Mitigation |
 |---|---|---|---|
-| Copied Varovik content/images | Legal/reputational/SEO | High | Replace before promotion; confirm rights; keep old copy only until replacement approved |
+| Inherited partner descriptions (images permitted) | SEO/GEO (duplicate text) | Medium | Rewrite for originality; keep old copy only until replacement approved |
 | SSR refactor breaks catalogue UX | Technical | High | Additive server block first; feature flag; QA visual/functional; rollback |
 | Low traffic makes testing unreliable | Commercial | Medium | Sequential tests, qualitative research, micro-conversions; no false claims |
 | Price publication creates commitment | Commercial | Medium | Publish ranges + “окончателна оферта след замерване”; validate with owner |

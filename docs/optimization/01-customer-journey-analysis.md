@@ -43,7 +43,7 @@
 - Materials grid and “most valued” carousel load from Redux; initial HTML has no material cards/links.
 - 28 images after hydration; hero uses two full-screen Firebase images with no dimensions → LCP/CLS risk.
 - “Научи повече” scrolls to an about section; “Свържи се” goes to a contact page without a form.
-- External hotlinked images (competitor/third-party) undermine credibility and control.
+- External hotlinked images (third-party) undermine credibility and control.
 
 ### `/materials`
 - No H1 in server HTML; the catalogue grid is client-only; **no crawlable links to the 5 categories or 184 materials**.
@@ -57,9 +57,9 @@
 
 ### `/materials/{group}/{material}`
 - Server HTML: “Материалът не беше намерен...”. No name, description, specs or links.
-- After hydration: two H1s (group + material), short copied description, origin/surface/sizes (when present), CTA “Запитване за този материал” → `/contact`.
+- After hydration: two H1s (group + material), short inherited description, origin/surface/sizes (when present), CTA “Запитване за този материал” → `/contact`.
 - No price range, stock/lead time, samples, delivery, installation, care, comparison, FAQ, related materials, projects.
-- 118/184 descriptions are duplicated from Varovik; images are copies.
+- 118/184 descriptions originated from raw-material partner Varovik (permitted); public source/gallery references were removed from Firebase on 20 Oct 2026. The text remains duplicated for SEO/GEO and should be rewritten with original copy.
 
 ### `/contact`
 - No H1 in server HTML; no form; no callback request; no Viber/WhatsApp; no department contacts; no hours; no response-time promise.

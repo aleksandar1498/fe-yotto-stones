@@ -85,7 +85,7 @@
 
 | # | Change | Problem | Solution | Benefit | Risk | Files |
 |---|---|---|---|---|---|---|
-| P1.1 | Unique material copy | 118/184 copied from Varovik | Rewrite 150–300 words per material; specs, applications, care; original photos | GEO citations, uniqueness, legal safety | Content effort | catalogue data, material pages |
+| P1.1 | Unique material copy | 118/184 descriptions inherited from partner Varovik (permitted, but duplicate text) | Rewrite 150–300 words per material; specs, applications, care; original photos | GEO citations, uniqueness | Content effort | catalogue data, material pages |
 | P1.2 | Descriptive URLs | `/materials/1/1` | Add slugs (`/materials/mramor/verde`), 301 old URLs, sitemap/canonical update | Keyword relevance, shareability | Medium (redirects/indexing) | `page.tsx`, `sitemap.ts`, `next.config.ts` |
 | P1.3 | Schema graph | Thin/missing offers/FAQ/entity | LocalBusiness/Organization upgrade, Product + `additionalProperty`/`offers` (real), Service, FAQPage, AggregateRating (visible reviews) | Rich results, AI understanding | Low–medium | `src/lib/seo/**`, pages |
 | P1.4 | `llms.txt` + crawler policy | 404; no policy | Add route/static file; explicit allow groups; keep admin/api blocked | AI discoverability | Low | `src/app/llms.txt/route.ts` or `public/llms.txt`, `robots.ts` |

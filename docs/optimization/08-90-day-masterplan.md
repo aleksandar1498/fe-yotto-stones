@@ -33,13 +33,13 @@ Legend: S ≤ 3 days, M 4–8 days, L 9+ days; L/M/H risk.
 - Confirm production branch and create `feature/geo-seo-growth-optimization` (done).
 - Obtain GSC/GA4/GBP/OLX access; record current traffic/indexing (or mark unavailable).
 - Confirm: primary phone, hours, service area (Sofia + Plovdiv?), delivery/installation terms, price ranges, warranty, legal entity publication.
-- Approve content ownership: replace Varovik copy; confirm rights to project photos.
+- Approve content ownership: replace inherited material copy; partner image permission confirmed; confirm rights to project photos.
 - Approve AI-crawler policy and `llms.txt`.
 - Set KPI definitions and reporting cadence (`07`).
 
 **Deliverables:** access checklist, business-fact sheet, baseline snapshot, approved scope.
 **Dependencies:** owner availability.
-**Acceptance:** all facts signed off; analytics access granted; no open legal questions on copied content.
+**Acceptance:** all facts signed off; analytics access granted; partner image permission confirmed and content replacement plan approved.
 **Risk:** low. **Rollback:** none (no code).
 
 ---
@@ -92,7 +92,7 @@ Legend: S ≤ 3 days, M 4–8 days, L 9+ days; L/M/H risk.
 **Dependencies:** Sprint 1 SSR; owner-approved prices/claims; photo rights.
 **Effort:** 10 dev/content days + content writing.
 **Risk:** medium (content quality/legal).
-**Acceptance:** no copied Varovik text on updated pages; schema valid; service pages answer price/process/FAQ; reviews visible.
+**Acceptance:** no inherited/duplicated Varovik text on updated pages; schema valid; service pages answer price/process/FAQ; reviews visible.
 **Measurement:** GSC impressions/clicks for “цена/плот/перваз” queries; AI prompt panel mentions/citations (manual).
 
 ---

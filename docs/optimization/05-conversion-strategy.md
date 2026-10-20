@@ -62,7 +62,7 @@ Offline conversion (measurement → offer → order) happens in the admin. The s
 
 **Material pages** (fix existing 184):
 - One H1 (material name), unique description, specs, applications, care, price band, FAQ, related materials/projects, sample/quote CTA.
-- Replace Varovik copy; add original photos/specs.
+- Replace inherited material copy; add original photos/specs.
 - Server-render everything; descriptive URL.
 
 **Application pages:** kitchen, bathroom, windows, stairs, fireplace — link materials ↔ services ↔ projects.

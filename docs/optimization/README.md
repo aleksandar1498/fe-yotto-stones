@@ -27,7 +27,7 @@
 
 1. **The 184 material pages + 5 category pages are not server-rendered.** Live HTML shows “Loading materials...” / “Материалът не беше намерен...”, with no H1, specs or internal links. AI crawlers cannot retrieve the catalogue.
 2. **There is no online lead capture.** The calculator is disabled (`settings/priceCalculator=false`), `/contact` has no form, and “Поискай оферта” dead-ends at phone/email.
-3. **118/184 material descriptions and images come from `varovik-granit.com`** (direct Sofia competitor); sampled pages show 100 % text overlap. This blocks GEO citations and creates legal/reputational risk.
+3. **118/184 material descriptions originated from raw-material partner `varovik-granit.com`**, and the images are used with permission. The public `sourceUrl`/`sourceImageUrl` fields and **839 gallery URLs** were removed from Firebase on **20 Oct 2026**. The descriptions are still duplicated text, so original copy remains a GEO priority.
 4. **No analytics/attribution.** No GA4/GTM, no GSC API, no lead source field. Traffic, rankings, CVR and AI referrals are unknown — not zero.
 5. **Strong trust assets are invisible.** 4.9/28 Google reviews, 24-month warranty, 50 % advance/14-day offer, legal entity and an active OLX price anchor exist but are not on the site.
 
